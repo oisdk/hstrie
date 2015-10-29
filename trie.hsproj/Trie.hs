@@ -37,7 +37,7 @@ insert = foldr f (overEnd $ const True) where
   f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
 
 instance Show a => Show (Trie a) where
-  show  = show . toList
+  show = show . toList
 
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
@@ -76,7 +76,7 @@ overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
 
 nilIfEmpty :: Trie a -> Maybe (Trie a)
-nilIfEmpty t | null t = Nothing
+nilIfEmpty t | null t    = Nothing
              | otherwise = Just t
 
 overEnd :: (Bool -> Bool) -> (Trie a -> Trie a)
@@ -87,9 +87,9 @@ zipUntil base = foldr f where
   f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
            
 minit :: String -> String
-minit [] = []
+minit []        = []
 minit ('\n':[]) = []
-minit (x:xs) = x : minit xs
+minit (x:xs)    = x : minit xs
 
 tryAdd :: Bool -> String -> [String] -> String
 tryAdd False b = unlines . zipWith (++) (" " : repeat (' ':b))
@@ -110,6 +110,5 @@ instance Ord a => Ord (Trie a) where
                                                       EQ -> compare w z
                                                       GT -> GT
                                                       where (x,w) = M.findMax a
-                                                            (y,z) = M.findMax b                                                                                                                   
-
-
+                                                            (y,z) = M.findMax b 
+                                                            
