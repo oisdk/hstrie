@@ -1,25 +1,9 @@
 -- Haskell Playground 1.0
 let l = L.sort ["asodh", "aso", "sbcbsu", "", "apojdnkd", "aspd"]
 let t = fromList l
-let f pref = (fmap (pref ++) (toList $ complete pref t)) == (filter (L.isPrefixOf pref) l) 
-let g pref = (toList $ begins pref t) == (filter (L.isPrefixOf pref) l) 
 
 count t == length l
 l == toList t
 check contains (any . (==)) l
 check begins beginsL l
-all f (l >>= L.inits)
-all f (l >>= L.tails)
-all g (l >>= L.inits)
-all g (l >>= L.tails)
-
-putStrLn (debugPrint t)
-
-lines (debugPrint t)
-
-(minit . minit) (unlines ["a", "b"])
-
-cycle
-
-zipWith (:)
-
+check complete completeL l

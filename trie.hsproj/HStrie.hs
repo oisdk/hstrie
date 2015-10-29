@@ -37,6 +37,9 @@ containsL = any . (==)
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
 
+completeL :: (Ord a) => [a] -> [[a]] -> Trie a
+completeL l = fromList . map (drop (length l)) . filter (L.isPrefixOf l)
+
 -- | Checks that a function on a trie and a function on a list 
 -- of lists is equivalent
 check :: (Ord a, Eq c) => ([a] -> Trie a -> c) -> ([a] -> [[a]] -> c) -> [[a]] -> Bool
@@ -48,8 +51,9 @@ check tf lf l = all (liftM2 (==) tfa lfa) (liftM2 (++) L.tails L.inits =<< l)  w
 -- | Evaluates to a Trie of all of the members which begin with
 -- the foldable
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-begins = foldr f id where
-      f e a = toTrie . fmap (flip Trie False . M.singleton e . a) . M.lookup e . getTrie
+begins xs = toTrie . begins' xs . Just where
+  begins' = foldr f id
+  f e a   = (fmap (flip Trie False . M.singleton e) . a . M.lookup e . getTrie =<<)
       
 beginsL :: Ord a => [a] -> [[a]] -> Trie a
 beginsL l = fromList . filter (L.isPrefixOf l)
