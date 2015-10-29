@@ -7,3 +7,6 @@ l == toList t
 check contains (any . (==)) l
 check begins beginsL l
 check complete completeL l
+check hasSub hasSubL l
+check hasPref hasPrefL l
+check hasSuff hasSuffL l
