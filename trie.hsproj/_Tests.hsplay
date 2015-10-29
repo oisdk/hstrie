@@ -1,0 +1,12 @@
+-- Haskell Playground 1.0
+let a = Args Nothing 5 10 10 True
+
+quickCheckWith a (liftM2 (==) (count  . fromList) (S.size   . S.fromList) :: [String] -> Bool)
+quickCheckWith a (liftM2 (==) (toList . fromList) (S.toList . S.fromList))
+quickCheckWith a (check containsL contains)
+quickCheckWith a (check completeL complete)
+quickCheckWith a (check beginsL begins)
+quickCheckWith a (check hasSubL hasSub)
+quickCheckWith a (check hasPrefL hasPref)
+quickCheckWith a (check hasSuffL hasSuff)
+quickCheckWith a (check removeL remove)

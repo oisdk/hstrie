@@ -1,3 +1,21 @@
+module Trie (
+  Trie
+  , empty
+  , null
+  , insert
+  , count
+  , show
+  , fromList
+  , toList
+  , contains
+  , hasPref
+  , hasSuff
+  , complete
+  , begins
+  , remove
+  , hasSub
+  , debugPrint) where
+
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import Data.Foldable hiding (toList)
@@ -12,8 +30,7 @@ empty :: Trie a
 empty = Trie M.empty False
 
 null :: Trie a -> Bool
-null (Trie _ True) = False
-null (Trie m _   ) = M.null m
+null (Trie m e) = not e && M.null m
 
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f (overEnd $ const True) where
@@ -95,29 +112,4 @@ instance Ord a => Ord (Trie a) where
                                                       where (x,w) = M.findMax a
                                                             (y,z) = M.findMax b                                                                                                                   
 
-check :: (Ord a, Eq c) => ([a] -> Trie a -> c) -> ([a] -> [[a]] -> c) -> [[a]] -> Bool
-check tf lf l = all (liftM2 (==) tfa lfa) (liftM2 (++) L.tails L.inits =<< l)  where
-  t   = fromList l
-  tfa = flip tf t
-  lfa = flip lf l
 
-containsL :: Eq a => [a] -> [[a]] -> Bool
-containsL = any . (==)
-
-completeL :: (Ord a) => [a] -> [[a]] -> Trie a
-completeL l = fromList . map (drop (length l)) . filter (L.isPrefixOf l)
-    
-beginsL :: Ord a => [a] -> [[a]] -> Trie a
-beginsL l = fromList . filter (L.isPrefixOf l)
-
-hasSubL :: Eq a => [a] -> [[a]] -> Bool
-hasSubL x l = any (L.isPrefixOf x) (l >>= L.tails)
-
-hasPrefL :: Eq a => [a] -> [[a]] -> Bool
-hasPrefL = any . L.isPrefixOf
-
-hasSuffL :: Eq a => [a] -> [[a]] -> Bool
-hasSuffL = any . L.isSuffixOf
-
-removeL :: Ord a => [a] -> [[a]] -> Trie a
-removeL x = fromList . filter (/=x)

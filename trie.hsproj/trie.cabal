@@ -22,7 +22,7 @@ extra-source-files:
 extra-tmp-files:
 extra-doc-files:
 Executable trie
-  main-is: HStrie.hs
+  main-is: Trie.hs
   buildable: True
   build-tools:
   cpp-options:
@@ -42,7 +42,7 @@ Executable trie
   install-includes:
   include-dirs:
   hs-source-dirs:
-  other-modules:
+  other-modules: Tests
   ghc-prof-options:
   ghc-shared-options:
   ghc-options:
