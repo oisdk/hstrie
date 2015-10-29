@@ -11,6 +11,10 @@ data Trie a = Trie { getTrie :: M.Map a (Trie a), endHere :: Bool } deriving (Eq
 empty :: Trie a
 empty = Trie M.empty False
 
+null :: Trie a -> Bool
+null (Trie _ True) = False
+null (Trie m _   ) = M.null m
+
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f (overEnd $ const True) where
   f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
@@ -43,11 +47,20 @@ begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
   f e a   = (fmap (flip Trie False . M.singleton e) . a . M.lookup e . getTrie =<<)
   
+remove :: (Ord a , Foldable f) => f a -> Trie a -> Trie a
+remove xs = (fromMaybe empty) . (remove' xs) where
+  remove' = foldr f (nilIfEmpty . overEnd (const False))
+  f e a   = nilIfEmpty . overMap (M.alter (>>= a) e)          
+    
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
 
 overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
+
+nilIfEmpty :: Trie a -> Maybe (Trie a)
+nilIfEmpty t | null t = Nothing
+             | otherwise = Just t
 
 overEnd :: (Bool -> Bool) -> (Trie a -> Trie a)
 overEnd f (Trie m e) = Trie m (f e)
@@ -105,3 +118,6 @@ hasPrefL = any . L.isPrefixOf
 
 hasSuffL :: Eq a => [a] -> [[a]] -> Bool
 hasSuffL = any . L.isSuffixOf
+
+removeL :: Ord a => [a] -> [[a]] -> Trie a
+removeL x = fromList . filter (/=x)

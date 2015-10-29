@@ -10,5 +10,4 @@ check complete completeL l
 check hasSub hasSubL l
 check hasPref hasPrefL l
 check hasSuff hasSuffL l
-
-putStrLn (debugPrint t)
+check remove removeL l
