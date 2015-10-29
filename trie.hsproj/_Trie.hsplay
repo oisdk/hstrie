@@ -1,2 +1,7 @@
 -- Haskell Playground 1.0
 toList $ fromList ["abc", "def", "ab"]
+
+let f :: Int -> Char -> String -> Bool
+    f _ _ _ = False
+    
+flip $ flip f

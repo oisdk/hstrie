@@ -45,7 +45,12 @@ fromList = foldr insert empty
 
 toList :: Trie a -> [[a]]
 toList (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
-  f c k = (c ++) . fmap (k :) . toList
+  f c k t = c ++ (map (k :) (toList t))
+
+--
+--toList :: Trie a -> [[a]]
+--toList (Trie m a) = M.foldrWithKey f (if a then [[]] else []) m where
+--  f k = (++) . map (k :) . toList
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
