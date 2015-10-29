@@ -20,3 +20,6 @@ lines (debugPrint t)
 (minit . minit) (unlines ["a", "b"])
 
 cycle
+
+zipWith (:)
+

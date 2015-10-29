@@ -96,15 +96,16 @@ minit [] = []
 minit ('\n':[]) = []
 minit (x:xs) = x : minit xs
 
-pad :: Int -> String -> String
-pad n s = (take n) (s ++ (repeat ' '))
+tryAdd :: Bool -> String -> [String] -> String
+tryAdd False b = unlines . zipWith (++) (" " : repeat (' ':b))
+tryAdd True  b = ('|' :) . unlines . zipWith (++) ("" : repeat (' ':b))
 
 debugPrint :: Show a => Trie a -> String
 debugPrint = debugPrint' "" where 
-    debugPrint' b (Trie m e) = unlines $ zipWith (++) 
-                                      ((if e then "|" else " ") : repeat b) 
-                                      (minit . f <$> M.assocs m) where
-                                       f = \(h,t) -> (pad 0 (show h)) ++ (debugPrint' ("   " ++ b) t)
+    debugPrint' b (Trie m e) = tryAdd e b . fmap (minit . f) $ (M.assocs m) where
+      f (h,t) = str ++ debugPrint' (pad ++ b) t where
+        str = show h
+        pad = ' ' : zipWith const (repeat ' ') str
            
 --wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 --wiSubs = getSubs nilIfEmptyEnd (nilIfEmptyEnd . toFalse)
