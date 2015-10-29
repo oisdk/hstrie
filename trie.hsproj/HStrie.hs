@@ -31,27 +31,28 @@ contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
 
 containsL :: Eq a => [a] -> [[a]] -> Bool
-containsL x = any (==x)
+containsL = any . (==)
 
 -- | Evaluates to a Trie of the completions of the foldable
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
 
-
 -- | Checks that a function on a trie and a function on a list 
 -- of lists is equivalent
 check :: (Ord a, Eq c) => ([a] -> Trie a -> c) -> ([a] -> [[a]] -> c) -> [[a]] -> Bool
 check tf lf l = all (liftM2 (==) tfa lfa) (liftM2 (++) L.tails L.inits =<< l)  where
-  t = fromList l
+  t   = fromList l
   tfa = flip tf t
   lfa = flip lf l
   
-
 -- | Evaluates to a Trie of all of the members which begin with
 -- the foldable
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins = foldr f id where
       f e a = toTrie . fmap (flip Trie False . M.singleton e . a) . M.lookup e . getTrie
+      
+beginsL :: Ord a => [a] -> [[a]] -> Trie a
+beginsL l = fromList . filter (L.isPrefixOf l)
       
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f toTrue where
@@ -89,6 +90,21 @@ getSubs b g xs = toTrie . getSubs' xs where
   f e a = g . overMap (M.mapMaybeWithKey ff) where
     ff k v | k == e    = a v <|> getSubs' xs v
            | otherwise = getSubs' xs v
+           
+minit :: String -> String
+minit [] = []
+minit ('\n':[]) = []
+minit (x:xs) = x : minit xs
+
+pad :: Int -> String -> String
+pad n s = (take n) (s ++ (repeat ' '))
+
+debugPrint :: Show a => Trie a -> String
+debugPrint = debugPrint' "" where 
+    debugPrint' b (Trie m e) = unlines $ zipWith (++) 
+                                      ((if e then "|" else " ") : repeat b) 
+                                      (minit . f <$> M.assocs m) where
+                                       f = \(h,t) -> (pad 0 (show h)) ++ (debugPrint' ("   " ++ b) t)
            
 --wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 --wiSubs = getSubs nilIfEmptyEnd (nilIfEmptyEnd . toFalse)
