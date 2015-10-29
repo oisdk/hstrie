@@ -1,5 +1,5 @@
 -- Haskell Playground 1.0
-toList $ fromList ["abc", "def", "ab"]
+toListDesc $ fromList ["abc", "def", "ab", ""]
 
 let f :: Int -> Char -> String -> Bool
     f _ _ _ = False

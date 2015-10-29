@@ -14,14 +14,14 @@ module Trie (
   , begins
   , remove
   , hasSub
-  , debugPrint) where
+  , debugPrint
+  , toListDesc) where
 
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
-import qualified Data.List as L
 import Control.Monad
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a)
@@ -45,12 +45,11 @@ fromList = foldr insert empty
 
 toList :: Trie a -> [[a]]
 toList (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
-  f c k t = c ++ (map (k :) (toList t))
+  f c k = (c ++) . map (k :) . toList
 
---
---toList :: Trie a -> [[a]]
---toList (Trie m a) = M.foldrWithKey f (if a then [[]] else []) m where
---  f k = (++) . map (k :) . toList
+toListDesc :: Trie a -> [[a]]
+toListDesc (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
+  f c k = (++ c) . map (k :) . toListDesc
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
