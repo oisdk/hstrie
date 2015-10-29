@@ -1,9 +1,10 @@
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import Data.Foldable hiding (toList)
-import Prelude hiding (foldr, null, all)
+import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
 import qualified Data.List as L
+import Control.Monad
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a), endHere :: Bool } deriving (Eq)
 
@@ -29,16 +30,32 @@ zipUntil base = foldr f where
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
 
+containsL :: Eq a => [a] -> [[a]] -> Bool
+containsL x = any (==x)
+
 -- | Evaluates to a Trie of the completions of the foldable
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
 
+
+-- | Checks that a function on a trie and a function on a list 
+-- of lists is equivalent
+check :: (Ord a, Eq c) => ([a] -> Trie a -> c) -> ([a] -> [[a]] -> c) -> [[a]] -> Bool
+check tf lf l = all (liftM2 (==) tfa lfa) (liftM2 (++) L.tails L.inits =<< l)  where
+  t = fromList l
+  tfa = flip tf t
+  lfa = flip lf l
+  
 
 -- | Evaluates to a Trie of all of the members which begin with
 -- the foldable
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins = foldr f id where
       f e a = toTrie . fmap (flip Trie False . M.singleton e . a) . M.lookup e . getTrie
+      
+insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+insert = foldr f toTrue where
+  f e a = overMap (M.alter (Just . a . toTrie) e)
 
 null :: Trie a -> Bool
 null (Trie m e) = M.null m
@@ -63,9 +80,6 @@ someIfEmpty :: Trie a -> Maybe (Trie a)
 someIfEmpty t | null t = Just t
               | otherwise = Nothing
 
-insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-insert = foldr f toTrue where
-  f e a = overMap (M.alter (Just . a . toTrie) e)
              
 getSubs :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) -> 
                                   (Trie a -> Maybe (Trie a)) -> 
