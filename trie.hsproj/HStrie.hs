@@ -1,9 +1,9 @@
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import Data.Foldable hiding (toList)
-import Prelude hiding (foldr, null)
+import Prelude hiding (foldr, null, all)
 import Control.Applicative hiding (empty)
-
+import qualified Data.List as L
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a), endHere :: Bool } deriving (Eq)
 
@@ -29,10 +29,16 @@ zipUntil base = foldr f where
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
 
-
 -- | Evaluates to a Trie of the completions of the foldable
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
+
+
+-- | Evaluates to a Trie of all of the members which begin with
+-- the foldable
+begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+begins = foldr f id where
+      f e a = toTrie . fmap (flip Trie False . M.singleton e . a) . M.lookup e . getTrie
 
 null :: Trie a -> Bool
 null (Trie m e) = M.null m
@@ -43,20 +49,15 @@ empty = Trie M.empty False
 toTrue :: Trie a -> Trie a
 toTrue (Trie m _) = Trie m True
 
+toTrie :: Maybe (Trie a) -> Trie a
+toTrie = fromMaybe empty
+
 toFalse :: Trie a -> Trie a
 toFalse (Trie m _) = Trie m False
 
 nilIfEmpty :: Trie a -> Maybe (Trie a)
-nilIfEmpty t | null t    = Nothing
-             | otherwise = Just t
-             
-nilIfEmptyEnd :: Trie a -> Maybe (Trie a)
-nilIfEmptyEnd t@(Trie m e) | null t && not e   = Nothing
-                           | otherwise = Just t
-             
-nilIfNoChildren :: Trie a -> Maybe (Trie a)
-nilIfNoChildren t@(Trie m e) | M.null m = Nothing
-                             | otherwise = Just t
+nilIfEmpty t@(Trie m e) | M.null m && not e = Nothing
+                        | otherwise         = Just t
              
 someIfEmpty :: Trie a -> Maybe (Trie a)
 someIfEmpty t | null t = Just t
@@ -64,33 +65,24 @@ someIfEmpty t | null t = Just t
 
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f toTrue where
-  f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
-  
-remove :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-remove xs = fromMaybe empty . remove' xs where
-  remove' = foldr f (nilIfEmpty . toFalse)
-  f e a = nilIfEmptyEnd . overMap (M.alter (a =<<) e)
+  f e a = overMap (M.alter (Just . a . toTrie) e)
              
 getSubs :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) -> 
                                   (Trie a -> Maybe (Trie a)) -> 
                                    f a -> Trie a -> Trie a
-getSubs b g xs = fromMaybe empty . getSubs' xs where
+getSubs b g xs = toTrie . getSubs' xs where
   getSubs' = foldr f b
   f e a = g . overMap (M.mapMaybeWithKey ff) where
     ff k v | k == e    = a v <|> getSubs' xs v
            | otherwise = getSubs' xs v
            
-wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-wiSubs = getSubs Just nilIfEmpty
-
-ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-ends = getSubs someIfEmpty nilIfEmpty
+--wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+--wiSubs = getSubs nilIfEmptyEnd (nilIfEmptyEnd . toFalse)
+--
+--ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+--ends = getSubs someIfEmpty (nilIfEmptyEnd . toFalse)
            
-begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-begins = foldr f id where
-      f e a (Trie m n) = fromMaybe empty (flip Trie n . 
-                                          M.singleton e . 
-                                          a <$> M.lookup e m)
+
 
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
@@ -100,7 +92,7 @@ toList (Trie m a) | a         = [] : rest
                   | otherwise = rest where
                   rest = M.assocs m >>= uncurry (fmap . (:)) . fmap toList
                   
-count :: Trie a -> Integer
+count :: Trie a -> Int
 count (Trie m e) = M.foldr ((+) . count) (if e then 1 else 0) m
 
 instance Ord a => Ord (Trie a) where
