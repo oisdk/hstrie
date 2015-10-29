@@ -4,21 +4,33 @@ import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null)
 import Control.Applicative hiding (empty)
 
+
 data Trie a = Trie { getTrie :: M.Map a (Trie a), endHere :: Bool } deriving (Eq)
 
 instance Show a => Show (Trie a) where
   show  = show . toList
 
+-- | overMap applies its first argument to the Map in the Trie of its second
+-- argument.
 overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
 
+
+-- | zipUntil constructs a function that acts over a foldable and a Trie.
+-- The function constructed will follow the Trie and the foldable together,
+-- until either the next element can't be found in the Trie, so it evaluates
+-- to its first argument, or the foldable is exhausted, so it evaluates its
+-- second argument on the nested Trie it finished on.
 zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
 zipUntil base = foldr f where
   f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
   
+-- | Is True iff the foldable is contained in the Trie
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
 
+
+-- | Evaluates to a Trie of the completions of the foldable
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
 
@@ -31,13 +43,33 @@ empty = Trie M.empty False
 toTrue :: Trie a -> Trie a
 toTrue (Trie m _) = Trie m True
 
+toFalse :: Trie a -> Trie a
+toFalse (Trie m _) = Trie m False
+
 nilIfEmpty :: Trie a -> Maybe (Trie a)
 nilIfEmpty t | null t    = Nothing
              | otherwise = Just t
+             
+nilIfEmptyEnd :: Trie a -> Maybe (Trie a)
+nilIfEmptyEnd t@(Trie m e) | null t && not e   = Nothing
+                           | otherwise = Just t
+             
+nilIfNoChildren :: Trie a -> Maybe (Trie a)
+nilIfNoChildren t@(Trie m e) | M.null m = Nothing
+                             | otherwise = Just t
+             
+someIfEmpty :: Trie a -> Maybe (Trie a)
+someIfEmpty t | null t = Just t
+              | otherwise = Nothing
 
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f toTrue where
   f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
+  
+remove :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+remove xs = fromMaybe empty . remove' xs where
+  remove' = foldr f (nilIfEmpty . toFalse)
+  f e a = nilIfEmptyEnd . overMap (M.alter (a =<<) e)
              
 getSubs :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) -> 
                                   (Trie a -> Maybe (Trie a)) -> 
@@ -45,14 +77,14 @@ getSubs :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) ->
 getSubs b g xs = fromMaybe empty . getSubs' xs where
   getSubs' = foldr f b
   f e a = g . overMap (M.mapMaybeWithKey ff) where
-    ff k v | k == e    = a v
+    ff k v | k == e    = a v <|> getSubs' xs v
            | otherwise = getSubs' xs v
-           
-woSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-woSubs = getSubs (const Nothing) Just
            
 wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 wiSubs = getSubs Just nilIfEmpty
+
+ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+ends = getSubs someIfEmpty nilIfEmpty
            
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins = foldr f id where
@@ -77,4 +109,4 @@ instance Ord a => Ord (Trie a) where
                                                       GT -> GT
                                                       where (x,w) = M.findMax a
                                                             (y,z) = M.findMax b
-                                                            
+                                                                                                                        

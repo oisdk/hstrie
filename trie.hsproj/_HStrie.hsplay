@@ -1,1 +1,4 @@
 -- Haskell Playground 1.0
+let t = fromList ["hello", "hiya", "hell"]
+
+remove "hello" t
