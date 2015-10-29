@@ -1,3 +1,1 @@
 -- Haskell Playground 1.0
-let t = fromList ["abcfg", "abcde", "ef"]
-
