@@ -1,1 +1,4 @@
 -- Haskell Playground 1.0
+let t = fromList ["abc", "acb", "ef"]
+
+wiSubs "ab" t
