@@ -26,26 +26,27 @@ empty = Trie M.empty False
 toTrue :: Trie a -> Trie a
 toTrue (Trie m _) = Trie m True
 
+toMaybe :: Trie a -> Maybe (Trie a)
+toMaybe t | null t    = Nothing
+          | otherwise = Just t
+
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = foldr f toTrue where
   f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
   
 woSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-woSubs xs = fromMaybe empty . woSubs' xs where
-  woSubs' xs = foldr f (const Nothing) xs
-  f e a = Just . overMap (M.mapMaybeWithKey ff) where
-    ff k v | k == e    = a v
-           | otherwise = woSubs' xs v
+woSubs = getSubs (const Nothing) Just
            
 wiSubs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-wiSubs xs = fromMaybe empty . wiSubs' xs where
-  wiSubs' xs = foldr f Just xs
-  f e a t  | null rest = Nothing
-           | otherwise = Just rest where
-                  rest = overMap (M.mapMaybeWithKey ff) t
-                  ff k v | k == e    = a v
-                         | otherwise = wiSubs' xs v
-
+wiSubs = getSubs Just toMaybe
+           
+getSubs :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) -> (Trie a -> Maybe (Trie a)) -> f a -> Trie a -> Trie a
+getSubs b g xs = fromMaybe empty . getSubs' xs where
+  getSubs' = foldr f b where
+  f e a = g . overMap (M.mapMaybeWithKey ff) where
+    ff k v | k == e    = a v
+           | otherwise = getSubs' xs v
+           
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
 
