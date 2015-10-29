@@ -33,14 +33,10 @@ contains = zipUntil False endHere
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = zipUntil empty id
 
---begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
---begins = foldr f id where
---  f e a = overMap <*> ((M.singleton e . a) <*> (M.lookup e))
+begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+begins = foldr f id where
+      f e a (Trie m n) = fromMaybe empty (flip Trie n . M.singleton e . a <$> M.lookup e m)
 
---begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
---begins = foldr f id where
---  f e a = overMap (M.singleton e . a . fromMaybe empty . M.lookup e)
-  
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
 
@@ -58,3 +54,4 @@ instance Ord a => Ord (Trie a) where
                                                       GT -> GT
                                                       where (x,w) = M.findMin a
                                                             (y,z) = M.findMin b
+                                                            
