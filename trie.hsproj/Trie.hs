@@ -24,7 +24,8 @@ import Control.Applicative hiding (empty)
 import qualified Data.List as L
 import Control.Monad
 
-data Trie a = Trie { getTrie :: M.Map a (Trie a), endHere :: Bool } deriving (Eq)
+data Trie a = Trie { getTrie :: M.Map a (Trie a)
+                   , endHere :: Bool } deriving (Eq)
 
 empty :: Trie a
 empty = Trie M.empty False
@@ -43,9 +44,8 @@ fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
 
 toList :: Trie a -> [[a]]
-toList (Trie m a) | a         = [] : rest
-                  | otherwise = rest where
-                  rest = M.assocs m >>= uncurry (fmap . (:)) . fmap toList
+toList (Trie m a) = M.foldrWithKey f (if a then [[]] else []) m where
+  f k = (++) . fmap (k :) . toList
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
@@ -67,7 +67,10 @@ begins xs = fromMaybe empty . begins' xs . Just where
 remove :: (Ord a , Foldable f) => f a -> Trie a -> Trie a
 remove xs = (fromMaybe empty) . (remove' xs) where
   remove' = foldr f (nilIfEmpty . overEnd (const False))
-  f e a   = nilIfEmpty . overMap (M.alter (>>= a) e)          
+  f e a   = nilIfEmpty . overMap (M.alter (>>= a) e)
+  
+foldrr :: ([a] -> b -> b) -> b -> Trie a -> b
+foldrr f i (Trie m e) = i
     
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
