@@ -12,7 +12,7 @@ empty :: Trie a
 empty = Trie M.empty False
 
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-insert = foldr f toTrue where
+insert = foldr f (overEnd $ const True) where
   f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
 
 instance Show a => Show (Trie a) where
@@ -49,12 +49,12 @@ hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
 overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
 
+overEnd :: (Bool -> Bool) -> (Trie a -> Trie a)
+overEnd f (Trie m e) = Trie m (f e)
+
 zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
 zipUntil base = foldr f where
   f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
-
-toTrue :: Trie a -> Trie a
-toTrue (Trie m _) = Trie m True
            
 minit :: String -> String
 minit [] = []
@@ -82,18 +82,18 @@ instance Ord a => Ord (Trie a) where
                                                       where (x,w) = M.findMax a
                                                             (y,z) = M.findMax b                                                                                                                   
 
-containsL :: Eq a => [a] -> [[a]] -> Bool
-containsL = any . (==)
-
-completeL :: (Ord a) => [a] -> [[a]] -> Trie a
-completeL l = fromList . map (drop (length l)) . filter (L.isPrefixOf l)
-
 check :: (Ord a, Eq c) => ([a] -> Trie a -> c) -> ([a] -> [[a]] -> c) -> [[a]] -> Bool
 check tf lf l = all (liftM2 (==) tfa lfa) (liftM2 (++) L.tails L.inits =<< l)  where
   t   = fromList l
   tfa = flip tf t
   lfa = flip lf l
-      
+
+containsL :: Eq a => [a] -> [[a]] -> Bool
+containsL = any . (==)
+
+completeL :: (Ord a) => [a] -> [[a]] -> Trie a
+completeL l = fromList . map (drop (length l)) . filter (L.isPrefixOf l)
+    
 beginsL :: Ord a => [a] -> [[a]] -> Trie a
 beginsL l = fromList . filter (L.isPrefixOf l)
 
