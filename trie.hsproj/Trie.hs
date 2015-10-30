@@ -23,11 +23,10 @@ module Trie (
   , union) where
 
 import qualified Data.Map.Strict as M
-import Data.Maybe
+import Data.Maybe (fromMaybe)
 import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
-import Control.Monad
 import Data.Monoid
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a)
@@ -83,7 +82,8 @@ filter f = foldrTrie ff empty where
 toList :: Trie a -> [[a]]
 toList = foldrTrie (:) []
 
-foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) -> b -> Trie a -> b
+foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) 
+                                                        -> b -> Trie a -> b
 foldrTrieGen f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
   ff k = flip (foldrTrieGen $ f . mappend (pure k))
 
