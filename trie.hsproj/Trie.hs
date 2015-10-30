@@ -53,6 +53,10 @@ union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
 
 instance Show a => Show (Trie a) where
   show = show . toList
+  
+instance Ord a => Monoid (Trie a) where
+  mempty  = empty
+  mappend = union 
 
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
@@ -70,6 +74,11 @@ toListDesc = makeList (flip (++))
 foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
 foldrTrie f i (Trie m a) = M.foldrWithKey ff (if a then f [] i else i) m where
   ff k = flip (foldrTrie $ f . (k :))
+  
+filter :: Ord a => ([a] -> Bool) -> Trie a -> Trie a
+filter f = foldrTrie ff empty where
+  ff e a | f e       = insert e a
+         | otherwise = a
   
 toList :: Trie a -> [[a]]
 toList = foldrTrie (:) []
