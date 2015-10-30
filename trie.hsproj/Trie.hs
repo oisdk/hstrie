@@ -71,19 +71,20 @@ toListDesc :: Trie a -> [[a]]
 toListDesc = makeList (flip (++))
 
 foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
-foldrTrie f i (Trie m a) = M.foldrWithKey ff (if a then f [] i else i) m where
+foldrTrie f i (Trie m a) | a         = M.foldrWithKey ff (f [] i) m 
+                         | otherwise = M.foldrWithKey ff i m where
   ff k = flip (foldrTrie $ f . (k :))
-  
+    
+toList :: Trie a -> [[a]]
+toList = foldrTrie (:) []
+
 filter :: Ord a => ([a] -> Bool) -> Trie a -> Trie a
 filter f = foldrTrie ff empty where
   ff e a | f e       = insert e a
          | otherwise = a
-  
-toList :: Trie a -> [[a]]
-toList = foldrTrie (:) []
 
 foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) 
-                                                        -> b -> Trie a -> b
+                                                          -> b -> Trie a -> b
 foldrTrieGen f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
   ff k = flip (foldrTrieGen $ f . mappend (pure k))
 
@@ -102,7 +103,10 @@ complete = zipUntil empty id
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
-  f e a   = (fmap (flip Trie False . M.singleton e) . a . M.lookup e . getTrie =<<)
+  f e a   = ((flip Trie False . M.singleton e <$>) 
+            . a 
+            . M.lookup e 
+            . getTrie =<<)
   
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
