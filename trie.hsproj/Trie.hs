@@ -143,10 +143,10 @@ instance Ord a => Ord (Trie a) where
                                                       where (x,w) = M.findMax a
                                                             (y,z) = M.findMax b 
                                                             
-alter :: (Ord a, Foldable f) => 
-  (Trie a -> Maybe (Trie a)) -> 
-  ((Trie a -> Maybe (Trie a)) -> (Maybe (Trie a) -> Maybe (Trie a))) -> 
-  f a -> Trie a  -> Trie a
+alter :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) 
+                             -> ((Trie a -> Maybe (Trie a)) 
+                             -> Maybe (Trie a) -> Maybe (Trie a)) 
+                             -> f a -> Trie a  -> Trie a
 alter i o xs = (fromMaybe empty) . (foldr f i xs) where
   f e a = nilIfEmpty . overMap (M.alter (o a) e)
   
