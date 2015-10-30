@@ -15,7 +15,10 @@ module Trie (
   , remove
   , hasSub
   , debugPrint
-  , toListDesc) where
+  , toListAsc
+  , toListDesc
+  , foldrTrie
+  , foldrTrieGen) where
 
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -48,8 +51,8 @@ makeList :: ([[a]] -> [[a]] -> [[a]]) -> Trie a -> [[a]]
 makeList com (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
   f c k = (com c) . map (k :) . makeList com
 
-toList :: Trie a -> [[a]]
-toList = makeList (++)
+toListAsc :: Trie a -> [[a]]
+toListAsc = makeList (++)
 
 toListDesc :: Trie a -> [[a]]
 toListDesc = makeList (flip (++))
@@ -57,10 +60,13 @@ toListDesc = makeList (flip (++))
 foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
 foldrTrie f i (Trie m a) = M.foldrWithKey ff (if a then f [] i else i) m where
   ff k = flip (foldrTrie $ f . (k :))
+  
+toList :: Trie a -> [[a]]
+toList = foldrTrie (:) []
 
-foldrT :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) -> b -> Trie a -> b
-foldrT f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
-  ff k = flip (foldrT $ f . mappend (pure k))
+foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) -> b -> Trie a -> b
+foldrTrieGen f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
+  ff k = flip (foldrTrieGen $ f . mappend (pure k))
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere

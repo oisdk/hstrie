@@ -2,7 +2,8 @@
 let a = Args Nothing 10 10 10 True
 
 quickCheckWith a (liftM2 (==) (count  . fromList) (S.size   . S.fromList) :: [String] -> Bool)
-quickCheckWith a (liftM2 (==) (toList . fromList) (S.toList . S.fromList))
+quickCheckWith a (liftM2 (==) (toListAsc . fromList) (S.toList . S.fromList))
+quickCheckWith a (liftM2 (==) (L.sort . toList . fromList) (S.toList . S.fromList))
 quickCheckWith a (liftM2 (==) (toListDesc . fromList) (reverse . S.toList . S.fromList))
 quickCheckWith a (check containsL contains)
 quickCheckWith a (check completeL complete)
