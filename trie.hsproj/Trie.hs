@@ -48,7 +48,7 @@ remove = alter (nilIfEmpty . overEnd (const False)) (=<<)
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
 
-union :: (Ord a) => Trie a -> Trie a -> Trie a
+union :: Ord a => Trie a -> Trie a -> Trie a
 union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
 
 instance Show a => Show (Trie a) where
