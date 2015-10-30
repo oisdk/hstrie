@@ -1,7 +1,3 @@
 -- Haskell Playground 1.0
-toListDesc $ fromList ["abc", "def", "ab", ""]
+let t = fromList ["abc", "def", "ab", ""]
 
-let f :: Int -> Char -> String -> Bool
-    f _ _ _ = False
-    
-flip $ flip f

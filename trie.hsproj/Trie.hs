@@ -23,6 +23,7 @@ import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
 import Control.Monad
+import Data.Monoid
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a)
                    , endHere :: Bool } deriving (Eq)
@@ -43,13 +44,23 @@ instance Show a => Show (Trie a) where
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
 
+makeList :: ([[a]] -> [[a]] -> [[a]]) -> Trie a -> [[a]]
+makeList com (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
+  f c k = (com c) . map (k :) . makeList com
+
 toList :: Trie a -> [[a]]
-toList (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
-  f c k = (c ++) . map (k :) . toList
+toList = makeList (++)
 
 toListDesc :: Trie a -> [[a]]
-toListDesc (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
-  f c k = (++ c) . map (k :) . toListDesc
+toListDesc = makeList (flip (++))
+
+foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
+foldrTrie f i (Trie m a) = M.foldrWithKey ff (if a then f [] i else i) m where
+  ff k = flip (foldrTrie $ f . (k :))
+
+foldrT :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) -> b -> Trie a -> b
+foldrT f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
+  ff k = flip (foldrT $ f . mappend (pure k))
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 contains = zipUntil False endHere
@@ -72,9 +83,6 @@ remove :: (Ord a , Foldable f) => f a -> Trie a -> Trie a
 remove xs = (fromMaybe empty) . (remove' xs) where
   remove' = foldr f (nilIfEmpty . overEnd (const False))
   f e a   = nilIfEmpty . overMap (M.alter (>>= a) e)
-  
-foldrr :: ([a] -> b -> b) -> b -> Trie a -> b
-foldrr f i (Trie m e) = i
     
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
