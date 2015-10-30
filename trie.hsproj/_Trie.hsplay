@@ -1,4 +1,2 @@
 -- Haskell Playground 1.0
-let t = fromList ["abc", "def", "ab", ""]
-
-(.)
+M.union

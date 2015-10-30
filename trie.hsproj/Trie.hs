@@ -19,7 +19,8 @@ module Trie (
   , toListDesc
   , foldrTrie
   , foldrTrieGen
-  , xor) where
+  , xor
+  , union) where
 
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -47,12 +48,8 @@ remove = alter (nilIfEmpty . overEnd (const False)) (=<<)
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
 
-alter :: (Ord a, Foldable f) => 
-  (Trie a -> Maybe (Trie a)) -> 
-  ((Trie a -> Maybe (Trie a)) -> (Maybe (Trie a) -> Maybe (Trie a))) -> 
-  f a -> Trie a  -> Trie a
-alter i o xs = (fromMaybe empty) . (foldr f i xs) where
-  f e a = nilIfEmpty . overMap (M.alter (o a) e)
+union :: (Ord a) => Trie a -> Trie a -> Trie a
+union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
 
 instance Show a => Show (Trie a) where
   show = show . toList
@@ -111,10 +108,6 @@ nilIfEmpty t | null t    = Nothing
 overEnd :: (Bool -> Bool) -> (Trie a -> Trie a)
 overEnd f (Trie m e) = Trie m (f e)
 
-zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
-zipUntil base = foldr f where
-  f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
-           
 minit :: String -> String
 minit []        = []
 minit ('\n':[]) = []
@@ -141,3 +134,13 @@ instance Ord a => Ord (Trie a) where
                                                       where (x,w) = M.findMax a
                                                             (y,z) = M.findMax b 
                                                             
+alter :: (Ord a, Foldable f) => 
+  (Trie a -> Maybe (Trie a)) -> 
+  ((Trie a -> Maybe (Trie a)) -> (Maybe (Trie a) -> Maybe (Trie a))) -> 
+  f a -> Trie a  -> Trie a
+alter i o xs = (fromMaybe empty) . (foldr f i xs) where
+  f e a = nilIfEmpty . overMap (M.alter (o a) e)
+  
+zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
+zipUntil base = foldr f where
+  f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
