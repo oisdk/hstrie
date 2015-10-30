@@ -14,6 +14,9 @@ containsL = any . (==)
 
 completeL :: (Ord a) => [a] -> [[a]] -> Trie a
 completeL l = fromList . map (drop (length l)) . filter (L.isPrefixOf l)
+
+completeT :: (Ord a) => [a] -> [[a]] -> [[a]]
+completeT l = map (drop (length l)) . filter (L.isPrefixOf l)
     
 beginsL :: Ord a => [a] -> [[a]] -> Trie a
 beginsL l = fromList . filter (L.isPrefixOf l)
@@ -30,20 +33,5 @@ hasSuffL = any . L.isSuffixOf
 removeL :: Ord a => [a] -> [[a]] -> Trie a
 removeL x = fromList . filter (/=x)
 
---empty
---  , null
---  , insert
---  , count
---  , show
---  , fromList
---  , toList
---  , contains
---  , hasPref
---  , hasSuff
---  , complete
---  , begins
---  , remove
---  , hasSub
---  , debugPrint
---  , toListAsc
---  , toListDesc
+xorL :: Ord a => [a] -> [[a]] -> Trie a
+xorL x l = if containsL x l then removeL x l else fromList (x : l)

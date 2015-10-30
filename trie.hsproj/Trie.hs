@@ -18,7 +18,8 @@ module Trie (
   , toListAsc
   , toListDesc
   , foldrTrie
-  , foldrTrieGen) where
+  , foldrTrieGen
+  , xor) where
 
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -38,8 +39,20 @@ null :: Trie a -> Bool
 null (Trie m e) = not e && M.null m
 
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-insert = foldr f (overEnd $ const True) where
-  f e a = overMap (M.alter (Just . a . fromMaybe empty) e)
+insert = alter (Just . overEnd (const True)) (. fromMaybe empty)
+  
+remove :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+remove = alter (nilIfEmpty . overEnd (const False)) (=<<)
+    
+xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
+
+alter :: (Ord a, Foldable f) => 
+  (Trie a -> Maybe (Trie a)) -> 
+  ((Trie a -> Maybe (Trie a)) -> (Maybe (Trie a) -> Maybe (Trie a))) -> 
+  f a -> Trie a  -> Trie a
+alter i o xs = (fromMaybe empty) . (foldr f i xs) where
+  f e a = nilIfEmpty . overMap (M.alter (o a) e)
 
 instance Show a => Show (Trie a) where
   show = show . toList
@@ -85,11 +98,6 @@ begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
   f e a   = (fmap (flip Trie False . M.singleton e) . a . M.lookup e . getTrie =<<)
   
-remove :: (Ord a , Foldable f) => f a -> Trie a -> Trie a
-remove xs = (fromMaybe empty) . (remove' xs) where
-  remove' = foldr f (nilIfEmpty . overEnd (const False))
-  f e a   = nilIfEmpty . overMap (M.alter (>>= a) e)
-    
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
 
