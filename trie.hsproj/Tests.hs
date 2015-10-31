@@ -6,8 +6,8 @@ import Trie
 import Test.QuickCheck
 import qualified Data.Set as S
 
---instance (Arbitrary a , Ord a) => Arbitrary (Trie a) where
---  arbitrary = fmap (fromList) (arbitrary :: (Arbitrary a, Ord a) => Gen [[a]])
+instance (Arbitrary a , Ord a) => Arbitrary (Trie a) where
+  arbitrary = fmap (fromList) (arbitrary :: (Arbitrary a, Ord a) => Gen [[a]])
        
 check :: (Ord a, Eq c) => (b -> [[a]] -> c) -> (b -> Trie a -> c) -> b -> [[a]] -> Bool
 check funcL func input into = (funcL input into) == (func input (fromList into))

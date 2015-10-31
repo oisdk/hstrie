@@ -15,8 +15,6 @@ module Trie (
   , remove
   , hasSub
   , debugPrint
-  , toListAsc
-  , toListDesc
   , foldrTrie
   , foldrTrieGen
   , xor
@@ -29,7 +27,6 @@ import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
 import Data.Monoid
-import Control.Monad
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a)
                    , endHere :: Bool } deriving (Eq)
@@ -73,32 +70,19 @@ instance Ord a => Monoid (Trie a) where
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
 
-makeList :: ([[a]] -> [[a]] -> [[a]]) -> Trie a -> [[a]]
-makeList com (Trie m a) = M.foldlWithKey f (if a then [[]] else []) m where
-  f c k = (com c) . map (k :) . makeList com
-
-toListAsc :: Trie a -> [[a]]
-toListAsc = makeList (++)
-
-toListDesc :: Trie a -> [[a]]
-toListDesc = makeList (flip (++))
-
 foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
-foldrTrie f i (Trie m a) | a         = M.foldrWithKey ff (f [] i) m 
-                         | otherwise = M.foldrWithKey ff i m where
+foldrTrie f i (Trie m a) = M.foldrWithKey ff s m where
+  s    = if a then f [] i else i
   ff k = flip (foldrTrie $ f . (k :))
     
 toList :: Trie a -> [[a]]
 toList = foldrTrie (:) []
 
-filter :: Ord a => ([a] -> Bool) -> Trie a -> Trie a
-filter f = foldrTrie ff empty where
-  ff e a | f e       = insert e a
-         | otherwise = a
-
-foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) => (f a -> b -> b) 
-                                                          -> b -> Trie a -> b
-foldrTrieGen f i (Trie m a) = M.foldrWithKey ff (if a then f mempty i else i) m where
+foldrTrieGen :: (Applicative f, Foldable f, Monoid (f a)) 
+             => (f a -> b -> b) 
+             -> b -> Trie a -> b
+foldrTrieGen f i (Trie m a) = M.foldrWithKey ff s m where
+  s    = if a then f mempty i else i
   ff k = flip (foldrTrieGen $ f . mappend (pure k))
 
 contains :: (Ord a, Foldable f) => f a -> Trie a -> Bool
@@ -116,8 +100,7 @@ complete = zipUntil empty id
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
-  f e a   = ((flip Trie False . M.singleton e <$>) 
-            . a . M.lookup e . getTrie =<<)
+  f e a   = (fmap (flip Trie False . M.singleton e) . a . M.lookup e . getTrie =<<)
             
 ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 ends xs = fromMaybe empty . ends' xs where
@@ -132,7 +115,10 @@ ends xs = fromMaybe empty . ends' xs where
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
 
-overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
+overMap :: Ord b 
+        => (M.Map a (Trie a) 
+        -> M.Map b (Trie b)) 
+        -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
 
 nilIfEmpty :: Trie a -> Maybe (Trie a)
@@ -159,18 +145,12 @@ debugPrint = debugPrint' "" where
             
 count :: Trie a -> Int
 count (Trie m e) = M.foldr ((+) . count) (if e then 1 else 0) m
-
-instance Ord a => Ord (Trie a) where
-  compare (Trie a _) (Trie b _) = case compare x y of LT -> LT
-                                                      EQ -> compare w z
-                                                      GT -> GT
-                                                      where (x,w) = M.findMax a
-                                                            (y,z) = M.findMax b 
                                                             
-alter :: (Ord a, Foldable f) => (Trie a -> Maybe (Trie a)) 
-                             -> ((Trie a -> Maybe (Trie a)) 
-                             -> Maybe (Trie a) -> Maybe (Trie a)) 
-                             -> f a -> Trie a  -> Trie a
+alter :: (Ord a, Foldable f) 
+      => (Trie a -> Maybe (Trie a)) 
+      -> ((Trie a -> Maybe (Trie a)) 
+      -> Maybe (Trie a) -> Maybe (Trie a)) 
+      -> f a -> Trie a  -> Trie a
 alter i o xs = (fromMaybe empty) . (foldr f i xs) where
   f e a = nilIfEmpty . overMap (M.alter (o a) e)
   
