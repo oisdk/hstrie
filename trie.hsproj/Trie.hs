@@ -19,6 +19,8 @@ module Trie (
   , foldrTrieGen
   , xor
   , union
+  , unions
+  , intersection
   , ends) where
 
 import qualified Data.Map.Lazy as M
@@ -84,20 +86,12 @@ intersectionWith f = M.mergeWithKey (const f) (const M.empty) (const M.empty)
 intersection :: Ord a => Trie a  -> Trie a -> Trie a
 intersection = mergeBy (intersectionWith $ (nilIfEmpty .) . intersection) (&&)
 
-difference :: Ord a => Trie a -> Trie a -> Trie a
-difference = mergeBy (M.differenceWith $ (nilIfEmpty .) . difference) (const not)
-
 symmetricDifferenceWith :: Ord d 
                         => (a -> a -> Maybe a) 
                         -> M.Map d a 
                         -> M.Map d a 
                         -> M.Map d a
 symmetricDifferenceWith f = M.mergeWithKey (const f) id id
-
-symmetricDifference :: Ord a => Trie a -> Trie a -> Trie a
-symmetricDifference = mergeBy 
-                      (symmetricDifferenceWith $ (nilIfEmpty .) . symmetricDifference) 
-                      (const not)
 
 instance Show a => Show (Trie a) where
   show = show . toList
