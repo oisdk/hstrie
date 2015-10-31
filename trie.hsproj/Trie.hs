@@ -44,14 +44,22 @@ null (Trie m e) = not e && M.null m
 noEnd :: Trie a -> Trie a
 noEnd = overEnd (const False)
 
+alter :: (Ord a, Foldable f) 
+      => (Bool -> Bool) 
+      -> ((Trie a -> Maybe (Trie a)) 
+      -> Maybe (Trie a) -> Maybe (Trie a)) 
+      -> f a -> Trie a  -> Trie a
+alter i o = (fromMaybe empty .) . foldr f (nilIfEmpty . overEnd i) where
+  f e a = nilIfEmpty . overMap (M.alter (o a) e)
+
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-insert = alter (Just . overEnd (const True)) (. fromMaybe empty)
+insert = alter (const True) (. fromMaybe empty)
   
 remove :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-remove = alter (nilIfEmpty . noEnd) (=<<)
+remove = alter (const False) (=<<)
     
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
+xor = alter (not) (. fromMaybe empty)
 
 union :: Ord a => Trie a -> Trie a -> Trie a
 union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
@@ -146,13 +154,7 @@ debugPrint = debugPrint' "" where
 count :: Trie a -> Int
 count (Trie m e) = M.foldr ((+) . count) (if e then 1 else 0) m
                                                             
-alter :: (Ord a, Foldable f) 
-      => (Trie a -> Maybe (Trie a)) 
-      -> ((Trie a -> Maybe (Trie a)) 
-      -> Maybe (Trie a) -> Maybe (Trie a)) 
-      -> f a -> Trie a  -> Trie a
-alter i o xs = (fromMaybe empty) . (foldr f i xs) where
-  f e a = nilIfEmpty . overMap (M.alter (o a) e)
+
   
 zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
 zipUntil base = foldr f where
