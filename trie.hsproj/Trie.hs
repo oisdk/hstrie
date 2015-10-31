@@ -21,6 +21,8 @@ module Trie (
   , union
   , unions
   , intersection
+  , difference
+  , symmetricDifference
   , ends) where
 
 import qualified Data.Map.Lazy as M
@@ -62,6 +64,12 @@ remove = alter (const False) (=<<)
     
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 xor = alter (not) (. fromMaybe empty)
+
+difference :: Ord a => Trie a -> Trie a -> Trie a
+difference = foldrTrie remove
+
+symmetricDifference :: Ord a => Trie a -> Trie a -> Trie a
+symmetricDifference = foldrTrie xor
 
 mergeBy :: (M.Map a (Trie a) 
         -> M.Map b (Trie b) 

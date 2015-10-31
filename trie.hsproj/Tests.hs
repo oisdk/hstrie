@@ -39,6 +39,9 @@ removeL x = fromList . filter (/=x)
 xorL :: Ord a => [a] -> [[a]] -> Trie a
 xorL x l = if containsL x l then removeL x l else fromList (x : l)
 
+xorL' :: Ord a => [a] -> [[a]] -> [[a]]
+xorL' x l = if containsL x l then toList (removeL x l) else x : l
+
 setOp :: Ord a => (S.Set [a] -> S.Set [a] -> S.Set [a]) -> Trie a -> [[a]] -> Trie a
 setOp f a b = fromList $ f ((S.fromList . toList) a) (S.fromList b)
 
@@ -50,3 +53,5 @@ sSuffixOf x  y  = L.isSuffixOf x y
 endsL :: Ord a => [a] -> [[a]] -> Trie a
 endsL l  = fromList . filter (sSuffixOf l)
 
+symDiffL :: Ord a => Trie a -> [[a]] -> Trie a
+symDiffL t l = fromList (foldr xorL' l (toList t))
