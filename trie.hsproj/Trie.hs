@@ -29,6 +29,7 @@ import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
 import Control.Applicative hiding (empty)
 import Data.Monoid
+import Control.Monad
 
 data Trie a = Trie { getTrie :: M.Map a (Trie a)
                    , endHere :: Bool } deriving (Eq)
@@ -121,8 +122,8 @@ ends xs = fromMaybe empty . ends' xs where
   ends' = foldr f base
   base (Trie _ False) = Nothing
   base (Trie _ True ) = Just (Trie M.empty True)
-  f e a t = nilIfEmpty (union (fromMaybe empty (h e a t)) (g t))
-  h e a = fmap (flip Trie False <$> M.singleton e) . (a =<<) . M.lookup e . getTrie
+  f e a t = union (g t) <$> h e a t <|> nilIfEmpty (g t)
+  h e a = (flip Trie False <$> M.singleton e <$>) . (a =<<) . M.lookup e . getTrie
   g = overMap (M.mapMaybe (ends' xs)) . noEnd
 
   
