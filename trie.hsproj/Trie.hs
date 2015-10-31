@@ -61,11 +61,43 @@ remove = alter (const False) (=<<)
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 xor = alter (not) (. fromMaybe empty)
 
+mergeBy :: (M.Map a (Trie a) 
+        -> M.Map b (Trie b) 
+        -> M.Map c (Trie c)) 
+        -> (Bool -> Bool -> Bool) 
+        -> Trie a -> Trie b -> Trie c
+mergeBy fm fb (Trie m a) (Trie n b) = Trie (fm m n) (fb a b)
+
 union :: Ord a => Trie a -> Trie a -> Trie a
-union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
+union = mergeBy (M.unionWith union) (||)
 
 unions :: (Ord a, Foldable f) => f (Trie a) -> Trie a
 unions = foldr union empty
+
+intersectionWith :: Ord d 
+                 => (a -> b -> Maybe c) 
+                 -> M.Map d a 
+                 -> M.Map d b 
+                 -> M.Map d c
+intersectionWith f = M.mergeWithKey (const f) (const M.empty) (const M.empty)
+
+intersection :: Ord a => Trie a  -> Trie a -> Trie a
+intersection = mergeBy (intersectionWith $ (nilIfEmpty .) . intersection) (&&)
+
+difference :: Ord a => Trie a -> Trie a -> Trie a
+difference = mergeBy (M.differenceWith $ (nilIfEmpty .) . difference) (const not)
+
+symmetricDifferenceWith :: Ord d 
+                        => (a -> a -> Maybe a) 
+                        -> M.Map d a 
+                        -> M.Map d a 
+                        -> M.Map d a
+symmetricDifferenceWith f = M.mergeWithKey (const f) id id
+
+symmetricDifference :: Ord a => Trie a -> Trie a -> Trie a
+symmetricDifference = mergeBy 
+                      (symmetricDifferenceWith $ (nilIfEmpty .) . symmetricDifference) 
+                      (const not)
 
 instance Show a => Show (Trie a) where
   show = show . toList
@@ -154,8 +186,6 @@ debugPrint = debugPrint' "" where
 count :: Trie a -> Int
 count (Trie m e) = M.foldr ((+) . count) (if e then 1 else 0) m
                                                             
-
-  
 zipUntil :: (Ord a, Foldable f) => b -> (Trie a -> b) -> f a -> Trie a -> b
 zipUntil base = foldr f where
   f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
