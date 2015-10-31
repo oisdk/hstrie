@@ -37,6 +37,10 @@ data Trie a = Trie { getTrie :: M.Map a (Trie a)
 empty :: Trie a
 empty = Trie M.empty False
 
+ifMaybe :: (a -> Bool) -> a -> Maybe a
+ifMaybe f x | f x       = Just x
+            | otherwise = Nothing
+
 null :: Trie a -> Bool
 null (Trie m e) = not e && M.null m
 
@@ -113,18 +117,16 @@ begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
   f e a   = ((flip Trie False . M.singleton e <$>) 
-            . a 
-            . M.lookup e 
-            . getTrie =<<)
+            . a . M.lookup e . getTrie =<<)
             
 ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 ends xs = fromMaybe empty . ends' xs where
-  ends' = foldr f base
-  base (Trie _ False) = Nothing
-  base (Trie _ True ) = Just (Trie M.empty True)
-  f e a t = union (g t) <$> h e a t <|> nilIfEmpty (g t)
-  h e a = (flip Trie False <$> M.singleton e <$>) . (a =<<) . M.lookup e . getTrie
-  g = overMap (M.mapMaybe (ends' xs)) . noEnd
+  ends' = foldr f someIfEnd
+  someIfEnd t | endHere t = Just (Trie M.empty True)
+              | otherwise = Nothing
+  f e a (Trie m _) = union rest <$> head <|> nilIfEmpty rest where
+    head = flip Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
+    rest = Trie (M.mapMaybe (ends' xs) m) False
 
   
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
@@ -134,8 +136,7 @@ overMap :: Ord b => (M.Map a (Trie a) -> M.Map b (Trie b)) -> Trie a -> Trie b
 overMap f (Trie m e) = Trie (f m) e
 
 nilIfEmpty :: Trie a -> Maybe (Trie a)
-nilIfEmpty t | null t    = Nothing
-             | otherwise = Just t
+nilIfEmpty = ifMaybe (not . null)
 
 overEnd :: (Bool -> Bool) -> (Trie a -> Trie a)
 overEnd f (Trie m e) = Trie m (f e)
