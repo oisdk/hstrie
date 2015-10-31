@@ -6,11 +6,11 @@ import Trie
 import Test.QuickCheck
 import qualified Data.Set as S
 
-instance (Arbitrary a , Ord a) => Arbitrary (Trie a) where
-  arbitrary = fmap (fromList) (arbitrary :: (Arbitrary a, Ord a) => Gen [[a]])
+--instance (Arbitrary a , Ord a) => Arbitrary (Trie a) where
+--  arbitrary = fmap (fromList) (arbitrary :: (Arbitrary a, Ord a) => Gen [[a]])
        
 check :: (Ord a, Eq c) => (b -> [[a]] -> c) -> (b -> Trie a -> c) -> b -> [[a]] -> Bool
-check lf tf l ll = lf l ll == tf l (fromList ll)
+check funcL func input into = (funcL input into) == (func input (fromList into))
 
 containsL :: Eq a => [a] -> [[a]] -> Bool
 containsL = any . (==)
@@ -41,3 +41,11 @@ xorL x l = if containsL x l then removeL x l else fromList (x : l)
 
 unionL :: Ord a => Trie a -> [[a]] -> Trie a
 unionL a b = fromList $ S.union ((S.fromList . toList) a) (S.fromList b)
+
+sSuffixOf :: Eq a => [a] -> [a] -> Bool
+sSuffixOf [] [] = True
+sSuffixOf [] _  = False
+sSuffixOf x  y  = L.isSuffixOf x y
+
+endsL :: Ord a => [a] -> [[a]] -> Trie a
+endsL l  = fromList . filter (sSuffixOf l)

@@ -20,9 +20,10 @@ module Trie (
   , foldrTrie
   , foldrTrieGen
   , xor
-  , union) where
+  , union
+  , ends) where
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map.Lazy as M
 import Data.Maybe (fromMaybe)
 import Data.Foldable hiding (toList)
 import Prelude hiding (foldr, null, all, any)
@@ -38,11 +39,14 @@ empty = Trie M.empty False
 null :: Trie a -> Bool
 null (Trie m e) = not e && M.null m
 
+noEnd :: Trie a -> Trie a
+noEnd = overEnd (const False)
+
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 insert = alter (Just . overEnd (const True)) (. fromMaybe empty)
   
 remove :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-remove = alter (nilIfEmpty . overEnd (const False)) (=<<)
+remove = alter (nilIfEmpty . noEnd) (=<<)
     
 xor :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
@@ -50,12 +54,16 @@ xor = alter (nilIfEmpty . overEnd not) (. fromMaybe empty)
 union :: Ord a => Trie a -> Trie a -> Trie a
 union (Trie m a) (Trie n b) = Trie (M.unionWith union m n) (a || b)
 
+unions :: (Ord a, Foldable f) => f (Trie a) -> Trie a
+unions = foldr union empty
+
 instance Show a => Show (Trie a) where
   show = show . toList
   
 instance Ord a => Monoid (Trie a) where
   mempty  = empty
-  mappend = union 
+  mappend = union
+  mconcat = unions
 
 fromList :: (Ord a, Foldable f, Foldable g) => f (g a) -> Trie a
 fromList = foldr insert empty
@@ -107,6 +115,16 @@ begins xs = fromMaybe empty . begins' xs . Just where
             . a 
             . M.lookup e 
             . getTrie =<<)
+            
+ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+ends xs = fromMaybe empty . ends' xs where
+  ends' = foldr f base
+  base (Trie _ False) = Nothing
+  base (Trie _ True ) = Just (Trie M.empty True)
+  f e a t = nilIfEmpty (union (fromMaybe empty (h e a t)) (g t))
+  h e a = fmap (flip Trie False <$> M.singleton e) . (a =<<) . M.lookup e . getTrie
+  g = overMap (M.mapMaybe (ends' xs)) . noEnd
+
   
 hasSub :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)

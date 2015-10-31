@@ -1,1 +1,6 @@
 -- Haskell Playground 1.0
+ends "abc" (fromList ["babc", "sgd"])
+
+ends "abc" (fromList ["bbabc", "abd"])
+
+ends "" (fromList ["a"])
