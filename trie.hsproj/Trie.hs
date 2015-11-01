@@ -91,7 +91,7 @@ member = follow False endHere
 -- > hasPref "abc"   t == False
 -- > hasPref "" (fromList ([] :: [String])) == True
 hasPref :: (Ord a, Foldable f) => f a -> Trie a -> Bool
-hasPref = follow False (const True)
+hasPref = follow False (not . null)
 
 -- | /O(n * m)/, where m is the longest member of the Trie. 
 -- Does the Trie contain a member with this suffix?
