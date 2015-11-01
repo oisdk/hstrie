@@ -43,8 +43,8 @@ stoggle :: Ord a => a -> S.Set a -> S.Set a
 stoggle e s = if S.member e s then S.delete e s else S.insert e s
 
 sends :: Ord a => [a] -> S.Set [a] -> S.Set [a]
-sends [] = (S.filter ([] ==)) 
-sends s  = (S.filter . isSuffixOf) s
+sends [] = S.filter ([] ==)
+sends s  = S.filter (isSuffixOf s)
 
 ssymmetricDiff :: Ord a => S.Set a -> S.Set a -> S.Set a
 ssymmetricDiff = S.foldr stoggle

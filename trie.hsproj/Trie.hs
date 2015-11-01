@@ -342,6 +342,18 @@ ends xs = fromMaybe empty . ends' xs where
 --------------------------------------------------------------------}
 
 -- | A textual representation of the Trie, suitable for debugging.
+--
+-- > let t = fromList $ words "house car roundabout round rounders \
+-- >                          \carpet cat cap carpentry"
+-- > putStrLn (showTrie t)
+-- >
+-- > 'c' 'a' 'p'|
+-- >         'r'|'p' 'e' 'n' 't' 'r' 'y'|
+-- >                     't'|
+-- >         't'|
+-- > 'h' 'o' 'u' 's' 'e'|
+-- > 'r' 'o' 'u' 'n' 'd'|'a' 'b' 'o' 'u' 't'|
+-- >                     'e' 'r' 's'|
 showTrie :: Show a => Trie a -> String
 showTrie = showTrie' "" where 
   showTrie' b (Trie m e) = tryAdd e b 
