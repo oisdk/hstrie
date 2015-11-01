@@ -1,4 +1,4 @@
-name: Trie
+name: trie
 version: 1.0
 cabal-version: 1.6
 build-type: Simple
@@ -21,7 +21,7 @@ data-dir: ""
 extra-source-files:
 extra-tmp-files:
 extra-doc-files:
-Executable Trie
+Executable trie
   main-is: Trie.hs
   buildable: True
   build-tools:
