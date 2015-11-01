@@ -3,7 +3,7 @@ module Tests where
 import Trie
 import Test.QuickCheck
 import qualified Data.Set as S
-import Data.List (isPrefixOf, isSuffixOf, isInfixOf)
+import Data.List (isPrefixOf, isSuffixOf, isInfixOf, sort)
 import Control.Monad (liftM2)
 import Prelude hiding (null, any)
 import Data.Foldable (any)
@@ -33,32 +33,48 @@ equivMerge sm tm la lb = (S.fromList la `sm` S.fromList lb)
                          `eqSetTrie` 
                          (fromList la `tm` fromList lb)
 
-eqSetTrie :: Eq a => S.Set [a] -> Trie a -> Bool
-eqSetTrie s t = S.toList s == toList t
+eqSetTrie :: Ord a => S.Set [a] -> Trie a -> Bool
+eqSetTrie s t = S.toAscList s == sort (toList t)
    
-spref :: Ord a => [a] -> S.Set [a] -> S.Set [a]
-spref l = S.map (drop (length l)) . S.filter (isPrefixOf l)
+scomplete :: Ord a => [a] -> S.Set [a] -> S.Set [a]
+scomplete l = S.map (drop (length l)) . S.filter (isPrefixOf l)
 
 stoggle :: Ord a => a -> S.Set a -> S.Set a
 stoggle e s = if S.member e s then S.delete e s else S.insert e s
+
+shasPref :: Ord a => [a] -> S.Set [a] -> Bool
+shasPref [] = const True
+shasPref s  = (any . isPrefixOf) s
+
+shasInf :: Ord a => [a] -> S.Set [a] -> Bool
+shasInf [] = const True
+shasInf s  = (any . isInfixOf) s
+
+sends :: Ord a => [a] -> S.Set [a] -> S.Set [a]
+sends [] = (S.filter ([] ==)) 
+sends s  = (S.filter . isSuffixOf) s
+
+ssymmetricDiff :: Ord a => S.Set a -> S.Set a -> S.Set a
+ssymmetricDiff = S.foldr stoggle
 
 main = do
   quickCheck (equivProp S.null null                              :: [String] ->  Bool           )
   quickCheck (equivProp S.size size                              :: [String] ->  Bool           )
   quickCheck (equivFunc S.member member (==)                     ::  String  -> [String] -> Bool)
-  quickCheck (equivFunc spref complete eqSetTrie                 ::  String  -> [String] -> Bool)
-  quickCheck (equivFunc (any . isPrefixOf) hasPref (==)          ::  String  -> [String] -> Bool)
+  quickCheck (equivFunc scomplete complete eqSetTrie             ::  String  -> [String] -> Bool)
+  quickCheck (equivFunc shasPref hasPref (==)                    ::  String  -> [String] -> Bool)
   quickCheck (equivFunc (any . isSuffixOf) hasSuff (==)          ::  String  -> [String] -> Bool)
-  quickCheck (equivFunc (any . isInfixOf) hasSub (==)            ::  String  -> [String] -> Bool)
+  quickCheck (equivFunc shasInf hasSub (==)                      ::  String  -> [String] -> Bool)
   quickCheck (equivFunc S.insert insert eqSetTrie                ::  String  -> [String] -> Bool)
   quickCheck (equivFunc stoggle toggle eqSetTrie                 ::  String  -> [String] -> Bool)
-  quickCheck (equivProp S.toList toList                          :: [String] ->  Bool           )
+  quickCheck (equivProp S.toAscList (sort . toList)              :: [String] ->  Bool           )
   quickCheck (equivFunc (S.filter . isPrefixOf) begins eqSetTrie ::  String  -> [String] -> Bool)
-  quickCheck (equivFunc (S.filter . isSuffixOf) ends   eqSetTrie ::  String  -> [String] -> Bool)
+  quickCheck (equivFunc sends ends   eqSetTrie                   ::  String  -> [String] -> Bool)
   quickCheck (liftM2 eqSetTrie S.singleton singleton             ::  String  ->  Bool           )
   quickCheck (equivMerge S.union union                           :: [String] -> [String] -> Bool)
   quickCheck (equivMerge S.difference difference                 :: [String] -> [String] -> Bool)
-  quickCheck (equivMerge S.intersection intersection             :: [String] -> [String] -> Bool) 
+  quickCheck (equivMerge S.intersection intersection             :: [String] -> [String] -> Bool)
+  quickCheck (equivMerge ssymmetricDiff symmetricDifference      :: [String] -> [String] -> Bool)
   
 --  , symmetricDifference
 --  , foldrTrie
