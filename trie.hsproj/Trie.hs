@@ -89,7 +89,6 @@ member = follow False endHere
 -- > hasPref "hell"  t == True
 -- > hasPref "hello" t == True
 -- > hasPref "abc"   t == False
--- > hasPref "" (fromList ([] :: [String])) == True
 hasPref :: (Ord a, Foldable f) => f a -> Trie a -> Bool
 hasPref = follow False (not . null)
 

@@ -42,14 +42,6 @@ scomplete l = S.map (drop (length l)) . S.filter (isPrefixOf l)
 stoggle :: Ord a => a -> S.Set a -> S.Set a
 stoggle e s = if S.member e s then S.delete e s else S.insert e s
 
-shasPref :: Ord a => [a] -> S.Set [a] -> Bool
-shasPref [] = const True
-shasPref s  = (any . isPrefixOf) s
-
-shasInf :: Ord a => [a] -> S.Set [a] -> Bool
-shasInf [] = const True
-shasInf s  = (any . isInfixOf) s
-
 sends :: Ord a => [a] -> S.Set [a] -> S.Set [a]
 sends [] = (S.filter ([] ==)) 
 sends s  = (S.filter . isSuffixOf) s
