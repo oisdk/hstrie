@@ -76,5 +76,3 @@ main = do
   quickCheck (equivMerge S.intersection intersection             :: [String] -> [String] -> Bool)
   quickCheck (equivMerge ssymmetricDiff symmetricDifference      :: [String] -> [String] -> Bool)
   
---  , symmetricDifference
---  , foldrTrie
