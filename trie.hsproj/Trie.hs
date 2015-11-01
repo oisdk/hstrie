@@ -1,19 +1,19 @@
 module Trie (
   Trie
   , empty
-  , null
   , insert
+  , fromList
+  , null
   , count
   , show
-  , fromList
   , toList
   , contains
   , hasPref
   , hasSuff
+  , hasSub
   , complete
   , begins
   , remove
-  , hasSub
   , debugPrint
   , foldrTrie
   , foldrTrieGen
@@ -50,8 +50,7 @@ noEnd = overEnd (const False)
 
 alter :: (Ord a, Foldable f) 
       => (Bool -> Bool) 
-      -> ((Trie a -> Maybe (Trie a)) 
-      -> Maybe (Trie a) -> Maybe (Trie a)) 
+      -> ((Trie a -> Maybe (Trie a)) -> Maybe (Trie a) -> Maybe (Trie a)) 
       -> f a -> Trie a  -> Trie a
 alter i o = (fromMaybe empty .) . foldr f (nilIfEmpty . overEnd i) where
   f e a = nilIfEmpty . overMap (M.alter (o a) e)

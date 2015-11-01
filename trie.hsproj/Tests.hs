@@ -12,6 +12,12 @@ instance (Arbitrary a , Ord a) => Arbitrary (Trie a) where
 check :: (Ord a, Eq c) => (b -> [[a]] -> c) -> (b -> Trie a -> c) -> b -> [[a]] -> Bool
 check funcL func input into = (funcL input into) == (func input (fromList into))
 
+isEquiv :: (Ord a, Eq c) 
+        => ([a] -> S.Set [a] -> c) 
+        -> ([a] -> Trie a -> c) 
+        -> [a] -> [[a]] -> Bool
+isEquiv funcS funcT input into = (funcS input (S.fromList into)) == (funcT input (fromList into))
+
 containsL :: Eq a => [a] -> [[a]] -> Bool
 containsL = any . (==)
 

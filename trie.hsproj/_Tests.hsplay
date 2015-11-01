@@ -3,7 +3,8 @@ let a = Args Nothing 15 10 10 True
 
 quickCheckWith a (liftM2 (==) (count  . fromList) (S.size   . S.fromList) :: [String] -> Bool)
 quickCheckWith a (liftM2 (==) (L.sort . toList . fromList) (S.toList . S.fromList))
-quickCheckWith a (check containsL contains)
+
+quickCheckWith a (isEquiv S.member contains)
 quickCheckWith a (check completeL complete)
 quickCheckWith a (check beginsL begins)
 quickCheckWith a (check endsL ends)
@@ -16,3 +17,4 @@ quickCheckWith a (check (setOp S.union) union)
 quickCheckWith a (check (setOp S.intersection) intersection)
 quickCheckWith a (check (setOp S.difference) difference)
 quickCheckWith a (check symDiffL symmetricDifference)
+
