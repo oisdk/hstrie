@@ -5,9 +5,11 @@ module Trie
   , null
   , size
   , member
+  , complete
   , hasPref
   , hasSuff
   , hasSub
+  , follow
   
   -- * Construction
   , empty
@@ -19,6 +21,7 @@ module Trie
   -- * Delete/Update
   , delete
   , toggle
+  , alter
   
   -- * Combine
   , difference
@@ -338,7 +341,7 @@ ends xs = fromMaybe empty . ends' xs where
   Debugging
 --------------------------------------------------------------------}
 
--- | A textual representation of the Trie, suitable for debugging
+-- | A textual representation of the Trie, suitable for debugging.
 showTrie :: Show a => Trie a -> String
 showTrie = showTrie' "" where 
   showTrie' b (Trie m e) = tryAdd e b 
