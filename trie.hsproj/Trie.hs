@@ -56,8 +56,9 @@ import Data.Monoid
   Trie type
 --------------------------------------------------------------------}
 
-data Trie a = Trie { getTrie :: M.Map a (Trie a)
-                   , endHere :: Bool } deriving (Eq)                   
+data Trie a = Trie { endHere :: Bool 
+                   , getTrie :: M.Map a (Trie a)
+                   } deriving (Eq)                   
 
 instance Show a => Show (Trie a) where
   show = show . toList
@@ -73,11 +74,11 @@ instance Ord a => Monoid (Trie a) where
 
 -- | /O(1)/. Is this the empty Trie?
 null :: Trie a -> Bool
-null (Trie m e) = not e && M.null m
+null (Trie e m) = not e && M.null m
 
 -- | /O(n)/. The number of members in the Trie.
 size :: Trie a -> Int
-size (Trie m e) = M.foldr ((+) . size) (if e then 1 else 0) m
+size (Trie e m) = M.foldr ((+) . size) (if e then 1 else 0) m
 
 -- | /O(n)/. Is the element in the Trie?
 member :: (Ord a, Foldable f) => f a -> Trie a -> Bool
@@ -161,13 +162,13 @@ follow base = foldr f where
   
 -- | /O(1)/. The empty Trie.
 empty :: Trie a
-empty = Trie M.empty False
+empty = Trie False M.empty
 
 -- | /O(n)/. Constructs a Trie with one member.
 singleton :: (Ord a, Foldable f) => f a -> Trie a
 singleton = foldr 
-            ((flip Trie False .) . M.singleton) 
-            (Trie M.empty True)
+            ((Trie False .) . M.singleton) 
+            (Trie True M.empty)
 
 {--------------------------------------------------------------------
   Insertion
@@ -258,7 +259,7 @@ mergeBy :: (M.Map a (Trie a)
         -> M.Map c (Trie c)) 
         -> (Bool -> Bool -> Bool) 
         -> Trie a -> Trie b -> Trie c
-mergeBy fm fb (Trie m a) (Trie n b) = Trie (fm m n) (fb a b)
+mergeBy fm fb (Trie a m) (Trie b n) = Trie (fb a b) (fm m n)
 
 -- | Returns a Trie of the members that exist in either Trie.
 union :: Ord a => Trie a -> Trie a -> Trie a
@@ -297,7 +298,7 @@ symmetricDifferenceWith f = M.mergeWithKey (const f) id id
 
 -- | Folds over the members of a Trie, in list form.
 foldrTrie :: ([a] -> b -> b) -> b -> Trie a -> b
-foldrTrie f i (Trie m a) = M.foldrWithKey ff s m where
+foldrTrie f i (Trie a m) = M.foldrWithKey ff s m where
   s    = if a then f [] i else i
   ff k = flip (foldrTrie $ f . (k :))
   
@@ -321,7 +322,7 @@ fromList = foldr insert empty
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 begins xs = fromMaybe empty . begins' xs . Just where
   begins' = foldr f id
-  f e a   = (fmap (flip Trie False . M.singleton e) 
+  f e a   = (fmap (Trie False . M.singleton e) 
             . a 
             . M.lookup e 
             . getTrie =<<)
@@ -330,11 +331,11 @@ begins xs = fromMaybe empty . begins' xs . Just where
 ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 ends xs = fromMaybe empty . ends' xs where
   ends' = foldr f someIfEnd
-  someIfEnd t | endHere t = Just (Trie M.empty True)
+  someIfEnd t | endHere t = Just (Trie True M.empty)
               | otherwise = Nothing
-  f e a (Trie m _) = union rest <$> head <|> nilIfEmpty rest where
-    head = flip Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
-    rest = Trie (M.mapMaybe (ends' xs) m) False
+  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
+    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
+    rest = Trie False (M.mapMaybe (ends' xs) m)
 
   
 {--------------------------------------------------------------------
@@ -356,7 +357,7 @@ ends xs = fromMaybe empty . ends' xs where
 -- >                     'e' 'r' 's'|
 showTrie :: Show a => Trie a -> String
 showTrie = showTrie' "" where 
-  showTrie' b (Trie m e) = tryAdd e b 
+  showTrie' b (Trie e m) = tryAdd e b 
                          . fmap (minit . f) 
                          $ (M.assocs m) where
     f (h,t) = str ++ showTrie' (pad ++ b) t where
@@ -378,7 +379,7 @@ nilIfEmpty :: Trie a -> Maybe (Trie a)
 nilIfEmpty = ifMaybe (not . null)
 
 overEnd :: (Bool -> Bool) -> Trie a -> Trie a
-overEnd f (Trie m e) = Trie m (f e)
+overEnd f (Trie e m) = Trie (f e) m
 
 ifMaybe :: (a -> Bool) -> a -> Maybe a
 ifMaybe f x | f x       = Just x
@@ -388,4 +389,4 @@ overMap :: Ord b
         => (M.Map a (Trie a) 
         -> M.Map b (Trie b)) 
         -> Trie a -> Trie b
-overMap f (Trie m e) = Trie (f m) e
+overMap f (Trie e m) = Trie e (f m)
