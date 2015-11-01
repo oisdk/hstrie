@@ -166,9 +166,8 @@ empty = Trie False M.empty
 
 -- | /O(n)/. Constructs a Trie with one member.
 singleton :: (Ord a, Foldable f) => f a -> Trie a
-singleton = foldr 
-            ((Trie False .) . M.singleton) 
-            (Trie True M.empty)
+singleton = foldr ((Trie False .) . M.singleton) 
+                  (Trie True M.empty)
 
 {--------------------------------------------------------------------
   Insertion
