@@ -40,6 +40,7 @@ module Trie
   -- * Filters
   , begins
   , ends
+  , subs
   
   -- * Debugging
   , showTrie
@@ -48,7 +49,7 @@ module Trie
 import qualified Data.Map.Lazy as M
 import Prelude hiding (null, foldr, any, all)
 import Data.Maybe (fromMaybe)
-import Data.Foldable (Foldable, any, all, foldr)
+import Data.Foldable (Foldable, foldMap, any, all, foldr)
 import Control.Applicative ((<|>), (<$>))
 import Data.Monoid
 
@@ -335,6 +336,13 @@ ends xs = fromMaybe empty . ends' xs where
   f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
     head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
     rest = Trie False (M.mapMaybe (ends' xs) m)
+    
+subs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+subs xs = fromMaybe empty . subs' xs where
+  subs' = foldr f Just
+  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
+    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
+    rest = Trie False (M.mapMaybe (subs' xs) m)
 
   
 {--------------------------------------------------------------------

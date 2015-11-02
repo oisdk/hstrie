@@ -61,6 +61,7 @@ main = do
   quickCheck (equivFunc stoggle toggle eqSetTrie                 ::  String  -> [String] -> Bool)
   quickCheck (equivProp S.toAscList (sort . toList)              :: [String] ->  Bool           )
   quickCheck (equivFunc (S.filter . isPrefixOf) begins eqSetTrie ::  String  -> [String] -> Bool)
+  quickCheck (equivFunc (S.filter . isInfixOf) subs eqSetTrie    ::  String  -> [String] -> Bool)
   quickCheck (equivFunc sends ends eqSetTrie                     ::  String  -> [String] -> Bool)
   quickCheck (liftM2 eqSetTrie S.singleton singleton             ::  String  ->  Bool           )
   quickCheck (equivMerge S.union union                           :: [String] -> [String] -> Bool)
