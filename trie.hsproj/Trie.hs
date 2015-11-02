@@ -52,6 +52,7 @@ import Data.Maybe (fromMaybe)
 import Data.Foldable (Foldable, foldMap, any, all, foldr)
 import Control.Applicative ((<|>), (<$>))
 import Data.Monoid
+import Control.Monad (liftM2)
 
 {--------------------------------------------------------------------
   Trie type
