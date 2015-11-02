@@ -51,8 +51,8 @@ import Prelude hiding (null, foldr, any, all)
 import Data.Maybe (fromMaybe)
 import Data.Foldable (Foldable, foldMap, any, all, foldr)
 import Control.Applicative ((<|>), (<$>))
+import qualified Data.List as L
 import Data.Monoid
-import Control.Monad (liftM2)
 
 {--------------------------------------------------------------------
   Trie type
@@ -364,20 +364,14 @@ infs i xs = fromMaybe empty . infs' xs where
 -- > 'r' 'o' 'u' 'n' 'd'|'a' 'b' 'o' 'u' 't'|
 -- >                     'e' 'r' 's'|
 showTrie :: Show a => Trie a -> String
-showTrie = showTrie' "" where 
-  showTrie' b (Trie e m) = tryAdd e b 
-                         . fmap (minit . f) 
-                         $ (M.assocs m) where
-    f (h,t) = str ++ showTrie' (pad ++ b) t where
-      str = show h
-      pad = ' ' : zipWith const (repeat ' ') str
-  minit []        = []
-  minit ('\n':[]) = []
-  minit (x:xs)    = x : minit xs
-  tryAdd False b = unlines . zipWith (++) (" " : repeat (' ':b))
-  tryAdd True  b = ('|' :) 
-                 . unlines 
-                 . zipWith (++) ("" : repeat (' ':b))
+showTrie = unlines . showTrie' where 
+  showTrie' = (ff =<<) . M.assocs . getTrie where
+    ff (k,t) = zipWith (++) pads $ case showTrie' t of [] -> [[]]
+                                                       r  -> r 
+                                                       where
+      pads = (strK ++ if endHere t then "|" else " ") : repeat padK
+      strK = show k
+      padK = ' ' : zipWith const (repeat ' ') strK
 
 {--------------------------------------------------------------------
   Helpers
