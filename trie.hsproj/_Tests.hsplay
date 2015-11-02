@@ -12,6 +12,7 @@ quickCheckWith a (equivFunc S.insert insert eqSetTrie                ::  String 
 quickCheckWith a (equivFunc stoggle toggle eqSetTrie                 ::  String  -> [String] -> Bool)
 quickCheckWith a (equivProp S.toAscList (sort . toList)              :: [String] ->  Bool           )
 quickCheckWith a (equivFunc (S.filter . isPrefixOf) begins eqSetTrie ::  String  -> [String] -> Bool)
+quickCheckWith a (equivFunc (S.filter . isInfixOf) subs eqSetTrie    ::  String  -> [String] -> Bool)
 quickCheckWith a (equivFunc sends ends   eqSetTrie                   ::  String  -> [String] -> Bool)
 quickCheckWith a (liftM2 eqSetTrie S.singleton singleton             ::  String  ->  Bool           )
 quickCheckWith a (equivMerge S.union union                           :: [String] -> [String] -> Bool)
