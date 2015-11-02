@@ -326,25 +326,25 @@ begins xs = fromMaybe empty . begins' xs . Just where
             . a 
             . M.lookup e 
             . getTrie =<<)
-            
+                        
 -- | Returns a Trie of the members that end with the given suffix.
 ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-ends xs = fromMaybe empty . ends' xs where
-  ends' = foldr f someIfEnd
-  someIfEnd t | endHere t = Just (Trie True M.empty)
-              | otherwise = Nothing
-  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
-    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
-    rest = Trie False (M.mapMaybe (ends' xs) m)
-    
-subs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-subs xs = fromMaybe empty . subs' xs where
-  subs' = foldr f Just
-  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
-    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
-    rest = Trie False (M.mapMaybe (subs' xs) m)
+ends = infs (ifMaybe endHere)
 
-  
+
+-- | Returns a Trie of the members that contain the given infix.    
+subs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
+subs = infs Just
+
+infs :: (Ord a, Foldable f) 
+     => (Trie a -> Maybe (Trie a)) 
+     -> f a -> Trie a -> Trie a
+infs i xs = fromMaybe empty . infs' xs where
+  infs' = foldr f i
+  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
+    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
+    rest = Trie False (M.mapMaybe (infs' xs) m)
+
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
@@ -382,15 +382,18 @@ showTrie = showTrie' "" where
   Helpers
 --------------------------------------------------------------------}
 
+-- | Takes a predicate and a value, and returns Just the value if the
+-- predicate on the value evaluates to True, otherwise returns
+-- Nothing.
+ifMaybe :: (a -> Bool) -> a -> Maybe a
+ifMaybe f x | f x       = Just x
+            | otherwise = Nothing
+
 nilIfEmpty :: Trie a -> Maybe (Trie a)
 nilIfEmpty = ifMaybe (not . null)
 
 overEnd :: (Bool -> Bool) -> Trie a -> Trie a
 overEnd f (Trie e m) = Trie (f e) m
-
-ifMaybe :: (a -> Bool) -> a -> Maybe a
-ifMaybe f x | f x       = Just x
-            | otherwise = Nothing
 
 overMap :: Ord b 
         => (M.Map a (Trie a) 
