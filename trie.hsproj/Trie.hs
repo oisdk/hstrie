@@ -84,7 +84,8 @@ size (Trie e m) = M.foldr ((+) . size) (if e then 1 else 0) m
 
 -- | /O(n)/. Is the element in the Trie?
 member :: (Ord a, Foldable f) => f a -> Trie a -> Bool
-member = follow False endHere
+member = foldr f endHere where
+  f e a = (maybe False a) . (M.lookup e . getTrie)
 
 -- | /O(n)/. Does the Trie contain a member with this prefix?
 --
@@ -156,7 +157,7 @@ follow :: (Ord a, Foldable f)
        => b -> (Trie a -> b) 
        -> f a -> Trie a -> b
 follow base = foldr f where
-  f e a = fromMaybe base . fmap a . M.lookup e . getTrie 
+  f e a = (maybe base a) . (M.lookup e . getTrie)
   
 {--------------------------------------------------------------------
   Construction
