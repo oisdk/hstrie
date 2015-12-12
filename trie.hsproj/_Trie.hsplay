@@ -1,1 +1,4 @@
 -- Haskell Playground 1.0
+let t = fromList $ words "house car roundabout round rounders \
+                          \carpet cat cap carpentry"
+                          

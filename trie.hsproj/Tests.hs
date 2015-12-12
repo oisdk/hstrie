@@ -49,7 +49,7 @@ sends s = S.filter (isSuffixOf s)
 ssymmetricDiff :: Ord a => S.Set a -> S.Set a -> S.Set a
 ssymmetricDiff = S.foldr stoggle
 
-main = do
+allTests = do
   quickCheck (equivProp S.null null                              :: [String] ->  Bool           )
   quickCheck (equivProp S.size size                              :: [String] ->  Bool           )
   quickCheck (equivFunc S.member member (==)                     ::  String  -> [String] -> Bool)

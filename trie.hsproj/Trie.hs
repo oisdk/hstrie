@@ -48,10 +48,10 @@ module Trie
     
 import qualified Data.Map.Lazy as M
 import Prelude hiding (null, foldr, any, all)
-import Data.Maybe (fromMaybe)
-import Data.Foldable (Foldable, foldMap, any, all, foldr)
-import Control.Applicative ((<|>), (<$>))
-import qualified Data.List as L
+import Data.Foldable (Foldable, any, all, foldr, fold)
+import Control.Applicative hiding (empty)
+import Data.Functor (($>))
+import Control.Monad
 import Data.Monoid
 
 {--------------------------------------------------------------------
@@ -84,8 +84,7 @@ size (Trie e m) = M.foldr ((+) . size) (if e then 1 else 0) m
 
 -- | /O(n)/. Is the element in the Trie?
 member :: (Ord a, Foldable f) => f a -> Trie a -> Bool
-member = foldr f endHere where
-  f e a = (maybe False a) . (M.lookup e . getTrie)
+member = follow False endHere
 
 -- | /O(n)/. Does the Trie contain a member with this prefix?
 --
@@ -118,41 +117,7 @@ hasSub xs t = hasPref xs t || any (hasSub xs) (getTrie t)
 complete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
 complete = follow empty id
 
--- | A universal function for querying a Trie with a 'Foldable'. When
--- calling @'follow' base f@, a function which takes a 
--- 'Foldable' and a Trie is created such that the 'Foldable' is 
--- followed until either the 'Foldable' runs out, or its next element
--- can't be found in the Trie.
---
--- * If the 'Foldable' is exhausted, 'f' is called on the remaining
--- Trie.
---
--- * If the next element in the 'Foldable' cannot be found, 'base' is
--- returned.
---
--- This function can be thought of as parallel to 'alter', but it 
--- discards the Trie that's being queried, and only keeps the final 
--- level reached with the 'Foldable'.
---
--- Examples:
---
--- * Member
---
--- > member = follow False endHere
--- 
--- Here, the first argument 'False' is returned if any element of the 
--- 'Foldable' cannot be found, and 'endHere' is called on the final 
--- Trie found. i.e., this function follows the 'Foldable' along the 
--- Trie, until it can't find the next element, so it returns 'False',
--- or it ends, so it asks the current Trie if it's a final Trie.
---
--- * Complete
---
--- > complete = follow empty id
---
--- Here, the empty Trie is returned if the entire 'Foldable' can't be 
--- found, or the final Trie you reach is returned if the 'Foldable' 
--- is exhausted.
+-- | A universal function for querying a Trie with a 'Foldable'.
 follow :: (Ord a, Foldable f) 
        => b -> (Trie a -> b) 
        -> f a -> Trie a -> b
@@ -169,8 +134,7 @@ empty = Trie False M.empty
 
 -- | /O(n)/. Constructs a Trie with one member.
 singleton :: (Ord a, Foldable f) => f a -> Trie a
-singleton = foldr ((Trie False .) . M.singleton) 
-                  (Trie True M.empty)
+singleton = foldr (Trie False .: M.singleton) (Trie True M.empty)
 
 {--------------------------------------------------------------------
   Insertion
@@ -178,7 +142,7 @@ singleton = foldr ((Trie False .) . M.singleton)
 
 -- | /O(n)/. Insert a new member into the Trie.
 insert :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-insert = alter (. fromMaybe empty) (overEnd (const True))
+insert = alter (Just empty) (\t -> t { endHere = True } )
 
 {--------------------------------------------------------------------
   Delete/Update
@@ -186,62 +150,20 @@ insert = alter (. fromMaybe empty) (overEnd (const True))
 
 -- | /O(n)/. Removes a member from the Trie.
 delete :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-delete = alter (=<<) (overEnd (const False))
+delete = alter (Nothing) (\t -> t { endHere = False } )
 
 -- | /O(n)/. Removes a member from the Trie if it is present, or
 -- inserts it if it is not.
 toggle :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-toggle = alter (. fromMaybe empty) (overEnd not)
+toggle = alter (Just empty) (overEnd not)
 
-
--- | A universal function for modifying a Trie with a 'Foldable'. 
--- When called with two arguments, @'alter' atFind atEnd@, a function
--- is created, such that
---
--- * atEnd is called on the lowest level Trie, i.e., the one reached 
--- if the entire 'Foldable' is followed and exhausted.
---
--- * atFind is called on the looked-up Trie at every element of the
--- 'Foldable'. This should apply the /rest/ of the alter function,
--- with the /rest/ of the 'Foldable', depending on the result of the
--- lookup. 
---
--- This can be thought of as parallel to 'follow', where 'follow' 
--- follows a 'Foldable', and then deals with either the Foldable 
--- being exhausted, or the next element not being found. 'alter' 
--- similarly follows a 'Foldable' down a Trie, but it preserves the 
--- rest of the Trie, and performs the required cleanup. (i.e, a 
--- branch of a Trie with no 'endHere's set to 'True' is not 
--- preserved.)
---
--- Examples:
---
--- * Insert
---
--- > insert = alter (. fromMaybe empty) (overEnd (const True))
---
--- Here, the first argument to alter says that if the next element of 
--- the 'Foldable' can't be found, then just give an empty Trie in its 
--- place. When the 'Foldable' is exhausted, though, call 
--- 'overEnd (const True)' on the final Trie found. (
--- 'overEnd (const True)' sets the boolean end flag to True.)
---
--- * Delete
---
--- > delete = alter (=<<) (overEnd (const False))
---
--- Here, the first argument says that if the next element cannot be 
--- found, pass the 'Nothing' back up along the chain. Otherwise, 
--- turns the end to 'False'.
+-- | A universal function for modifying a Trie with a 'Foldable'.
 alter :: (Ord a, Foldable f) 
-      => (( Trie a 
-         -> Maybe (Trie a)) 
-         -> Maybe (Trie a) 
-         -> Maybe (Trie a)) 
+      => (Maybe (Trie a)) 
       -> (Trie a -> Trie a) 
       -> f a -> Trie a  -> Trie a
-alter o i = (fromMaybe empty .) . foldr f (nilIfEmpty . i) where
-  f e a = nilIfEmpty . overMap (M.alter (o a) e)
+alter o i = fold .: foldr f (nilIfEmpty . i) where
+  f e a = nilIfEmpty . overMap (M.alter (a <=< (<|> o)) e)
   
 {--------------------------------------------------------------------
   Combine
@@ -284,13 +206,13 @@ intersectionWith f = M.mergeWithKey
 -- | Returns a Trie of the elements in both the first and second Trie
 intersection :: Ord a => Trie a  -> Trie a -> Trie a
 intersection = mergeBy 
-               (intersectionWith $ (nilIfEmpty .) . intersection) 
+               (intersectionWith $ nilIfEmpty .: intersection) 
                (&&)
 
 symmetricDifferenceWith :: Ord d 
-                        => (a -> a -> Maybe a) 
-                        -> M.Map d a 
-                        -> M.Map d a 
+                        => (a -> a -> Maybe a)
+                        -> M.Map d a
+                        -> M.Map d a
                         -> M.Map d a
 symmetricDifferenceWith f = M.mergeWithKey (const f) id id
 
@@ -322,17 +244,12 @@ fromList = foldr insert empty
   
 -- | Returns a Trie of the members that begin with the given prefix.
 begins :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-begins xs = fromMaybe empty . begins' xs . Just where
-  begins' = foldr f id
-  f e a   = (fmap (Trie False . M.singleton e) 
-            . a 
-            . M.lookup e 
-            . getTrie =<<)
+begins = fold .: foldr f Just where
+  f e a = fmap (Trie False . M.singleton e) . a <=< M.lookup e . getTrie
                         
 -- | Returns a Trie of the members that end with the given suffix.
 ends :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
-ends = infs (ifMaybe endHere)
-
+ends = infs ((Trie True M.empty <$) . guard . endHere)
 
 -- | Returns a Trie of the members that contain the given infix.    
 subs :: (Ord a, Foldable f) => f a -> Trie a -> Trie a
@@ -341,12 +258,15 @@ subs = infs Just
 infs :: (Ord a, Foldable f) 
      => (Trie a -> Maybe (Trie a)) 
      -> f a -> Trie a -> Trie a
-infs i xs = fromMaybe empty . infs' xs where
+infs i xs = fold . infs' xs where
   infs' = foldr f i
-  f e a (Trie _ m) = union rest <$> head <|> nilIfEmpty rest where
-    head = Trie False <$> M.singleton e <$> (a =<< M.lookup e m)
-    rest = Trie False (M.mapMaybe (infs' xs) m)
-
+  f e a (Trie _ m) = Trie False <$> tryComb (a =<< M.lookup e m) where 
+    tryComb Nothing  | M.null lowMap = Nothing
+                     | otherwise     = Just lowMap
+    tryComb (Just c) | M.null lowMap = Just (M.singleton e c)
+                     | otherwise     = Just (M.insertWith union e c lowMap)
+    lowMap = M.mapMaybe (infs' xs) m
+    
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
@@ -366,7 +286,7 @@ infs i xs = fromMaybe empty . infs' xs where
 -- >                     'e' 'r' 's'|
 showTrie :: Show a => Trie a -> String
 showTrie = unlines . showTrie' where 
-  showTrie' = (ff =<<) . M.assocs . getTrie where
+  showTrie' = (ff <=< M.assocs) . getTrie where
     ff (k,t) = zipWith (++) pads $ case showTrie' t of [] -> [[]]
                                                        r  -> r 
                                                        where
@@ -381,12 +301,11 @@ showTrie = unlines . showTrie' where
 -- | Takes a predicate and a value, and returns Just the value if the
 -- predicate on the value evaluates to True, otherwise returns
 -- Nothing.
-ifMaybe :: (a -> Bool) -> a -> Maybe a
-ifMaybe f x | f x       = Just x
-            | otherwise = Nothing
+ensure :: (a -> Bool) -> a -> Maybe a
+ensure f x = guard (f x) $> x
 
 nilIfEmpty :: Trie a -> Maybe (Trie a)
-nilIfEmpty = ifMaybe (not . null)
+nilIfEmpty = ensure (not . null)
 
 overEnd :: (Bool -> Bool) -> Trie a -> Trie a
 overEnd f (Trie e m) = Trie (f e) m
@@ -396,3 +315,6 @@ overMap :: Ord b
         -> M.Map b (Trie b)) 
         -> Trie a -> Trie b
 overMap f (Trie e m) = Trie e (f m)
+
+(.:) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+(.:) = (.).(.)
