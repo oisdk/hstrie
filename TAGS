@@ -1,0 +1,78 @@
+
+./Setup.hs,15
+main main1,2
+
+./src/Data/Trie.hs,1615
+module Data.TrieData.Trie13,14
+data Trie Trie33,34
+data Trie a b = TrieTrie33,34
+   { _trieEndHere _trieEndHere34,35
+   , _trieChildren _trieChildren35,36
+instance instance40,41
+data TrieSet TrieSet51,52
+data TrieSet a where TrieSet TrieSet51,52
+class (HasChildren a (Map keyEl (Trie keyEl end)), HasEndHere a end) => AsTrie AsTrie59,60
+class (HasChildren a (Map keyEl (Trie keyEl end)), HasEndHere a end) => AsTrie AsTrie59,60
+  trie trie60,61
+newtype TrieMap TrieMap68,69
+newtype TrieMap a b = TrieMapTrieMap68,69
+  { _getTrieMap _getTrieMap69,70
+newtype TrieBag TrieBag76,77
+newtype TrieBag a f b = TrieBagTrieBag76,77
+  { _getTrieBag _getTrieBag77,78
+class Nullable Nullable84,85
+class Nullable Nullable84,85
+class Nullable a where isEmpty isEmpty84,85
+nilIfEmpty nilIfEmpty89,90
+nilIfEmpty nilIfEmpty90,91
+foldrWithKey foldrWithKey92,93
+foldrWithKey foldrWithKey93,94
+foldMapWithKey foldMapWithKey97,98
+foldMapWithKey foldMapWithKey98,99
+bool bool102,103
+bool bool103,104
+union union113,114
+union union114,115
+insert insert128,129
+insert insert129,130
+lookup lookup150,151
+lookup lookup151,152
+prefixedBy prefixedBy163,164
+prefixedBy prefixedBy164,165
+showTrie showTrie172,173
+showTrie showTrie173,174
+completions completions180,181
+completions completions182,183
+type instance instance190,191
+type instance Index Index190,191
+type instance instance191,192
+type instance IxValue IxValue191,192
+type instance instance194,195
+type instance instance195,196
+type instance instance199,200
+type instance instance200,201
+
+./test/Spec.hs,668
+module Main Main2,3
+prop_checkFromList prop_checkFromList15,16
+prop_checkFromList prop_checkFromList16,17
+tfl tfl18,19
+tfl tfl19,20
+prop_checkWithSet prop_checkWithSet21,22
+prop_checkWithSet prop_checkWithSet22,23
+prop_checkUnion prop_checkUnion24,25
+prop_checkUnion prop_checkUnion25,26
+sameResult sameResult27,28
+sameResult sameResult28,29
+isId isId30,31
+isId isId31,32
+sameResult2 sameResult233,34
+sameResult2 sameResult234,35
+quickCheckExit quickCheckExit36,37
+quickCheckExit quickCheckExit37,38
+failWith failWith41,42
+failWith failWith42,43
+runTests runTests46,47
+runTests runTests47,48
+main main49,50
+main main50,51

@@ -1,0 +1,38 @@
+name:                Trie
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/oisdk/Trie#readme
+license:             MIT
+license-file:        LICENSE
+author:              Donnacha Oisin Kidney
+maintainer:          oisin.kidney@gmail.com
+copyright:           MIT
+category:            Data
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Data.Trie
+  build-depends:       base >= 4.7 && < 5
+                     , containers
+                     , lens
+                     , QuickCheck
+  default-language:    Haskell2010
+
+test-suite Trie-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , Trie
+                     , QuickCheck
+                     , containers
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/oisdk/Trie
