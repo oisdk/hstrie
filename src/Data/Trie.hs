@@ -9,17 +9,16 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 module Data.Trie
   ( TrieSet
   , TrieMap
   , TrieBag
-  , insert
-  , lookup
   , completions
   , prefixedBy
   , showTrie
+  , withInfix
   ) where
 
 import           Control.Lens    hiding (children)
@@ -148,10 +147,6 @@ instance (Ord a, Monoid (f b), Foldable f) => IsList (TrieBag a f b) where
   fromList = foldr (uncurry insert) mempty
   toList = foldrWithKey (\k v a -> if null v then a else (k,v) : a) []
 
-lookup :: (AsTrie t a b, Foldable f, Ord a) => b -> f a -> t -> b
-lookup x = views trie . foldr f (view endHere) where
-  f e = views (children . at e) . maybe x
-
 instance (Ord a, Show a) => Show (TrieSet [a]) where
   show = ("fromList " ++) . show . toList
 
@@ -169,6 +164,19 @@ prefixedBy = begins' mempty where
       child <- view (children . at e) t
       m' & (children . at e . traverse) (const $ a child)
     m' = m ^. trie
+
+withInfix :: (Ord a, Foldable f, AsTrie t a b, Monoid t, Nullable t)
+          => f a -> t -> t
+withInfix = infs' nilIfEmpty mempty mappend where
+  infs' :: (Ord a, Foldable f, AsTrie t a b)
+        => (t -> Maybe t) -> t -> (t -> t -> t) -> f a -> t -> t
+  infs' e n m = over trie . infs'' (from trie e) (n ^. trie) mpp  where
+    mpp x y =  from trie m x (y ^. from trie)
+  infs'' nie emp mpp x = go x where
+    go xs = trie %~ foldr f id xs
+    f e a t =
+      (children . at e .~ (nie . a =<< t ^. children . at e) $ emp) `mpp`
+      (children .~ Map.mapMaybe (nie . go x) (t^.children) $ emp)
 
 showTrie :: AsTrie t a b => (a -> Char) -> (b -> Char) -> t -> String
 showTrie a c = views trie (unlines . showTrie') where
