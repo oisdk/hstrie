@@ -27,7 +27,7 @@ import           Data.Foldable
 import           Data.Map            (Map)
 import qualified Data.Map            as Map
 import           Data.Maybe
-import           Data.Monoid
+import           Data.Monoid hiding (Last(..))
 import           Prelude             hiding (lookup)
 import           Test.QuickCheck
 
@@ -78,14 +78,14 @@ bool _ f False = f
 data TrieSet a where TrieSet :: Trie_ a Any -> TrieSet [a]
 data TrieBag a where TrieBag :: Trie_ a (Sum Int) -> TrieBag [a]
 
-instance Foldable Last where
-  foldr _ b (Last Nothing ) = b
-  foldr f b (Last (Just e)) = f e b
-  foldMap _ (Last Nothing ) = mempty
-  foldMap f (Last (Just e)) = f e
+newtype Last a = Last
+  { getLast :: Maybe a
+  } deriving (Functor, Foldable, Traversable, Eq, Ord)
 
-instance Traversable Last where
-  traverse f (Last m) = Last <$> traverse f m
+instance Monoid (Last a) where
+  mempty = Last Nothing
+  mappend l (Last Nothing) = l
+  mappend _ r = r
 
 newtype TrieMap a b = TrieMap
   { _getTrieMap :: Trie_ a (Last b)
@@ -152,8 +152,7 @@ instance Val [a] where
   repToMay = id
   sureToRep = pure
   repToList = id
-  isEmpty [] = True
-  isEmpty _ = False
+  isEmpty = null
 
 instance Val (Last b) where
   type SureVal (Last b) = b
@@ -161,8 +160,7 @@ instance Val (Last b) where
   repToMay = getLast
   sureToRep = Last . Just
   repToList = toList
-  isEmpty (Last Nothing) = True
-  isEmpty _ = False
+  isEmpty = null
 
 instance Ord a => Trie (TrieSet [a]) where
   type Key (TrieSet [a]) = a
@@ -195,7 +193,9 @@ member :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> t ->
 member xs = not . isEmpty . lookup_ xs . toRep
 
 insert :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> SureVal (ValRep t) -> t -> t
-insert xs v = fromRep . insert_ xs (sureToRep v) . toRep
+insert xs vs | isEmpty v = id
+             | otherwise = fromRep . insert_ xs v . toRep
+             where v = sureToRep vs
 
 fromList :: (Foldable f, Foldable g, Trie t, Ord (Key t), Val (ValRep t)) => f (g (Key t), SureVal (ValRep t)) -> t
 fromList = foldr (uncurry insert) mempty
