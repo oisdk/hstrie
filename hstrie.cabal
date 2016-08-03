@@ -1,8 +1,8 @@
-name:                Trie
+name:                hstrie
 version:             0.1.0.0
 synopsis:            Initial project template from stack
 description:         Please see README.md
-homepage:            https://github.com/oisdk/Trie#readme
+homepage:            https://github.com/oisdk/hstrie
 license:             MIT
 license-file:        LICENSE
 author:              Donnacha Oisin Kidney
@@ -10,30 +10,29 @@ maintainer:          oisin.kidney@gmail.com
 copyright:           MIT
 category:            Data
 build-type:          Simple
--- extra-source-files:
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Trie
+  exposed-modules:     Data.Trie, Data.TrieSet, Data.TrieMap, Data.TrieBag, Data.TrieBin
   build-depends:       base >= 4.7 && < 5
-                     , containers
-                     , lens
-                     , QuickCheck
+                     , containers >= 0.5
+                     , QuickCheck >= 2.8
   default-language:    Haskell2010
+  ghc-options:         -Wall -Werror
 
-test-suite Trie-test
+test-suite hstrie-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , Trie
-                     , QuickCheck
-                     , containers
+                     , hstrie
+                     , QuickCheck >= 2.8
                      , doctest
+                     , containers >= 0.5
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/oisdk/Trie
+  location: https://github.com/oisdk/hstrie
