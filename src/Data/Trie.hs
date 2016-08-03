@@ -1,220 +1,253 @@
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FunctionalDependencies     #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 module Data.Trie
-  ( TrieSet
-  , TrieMap
+  ( TrieBin
   , TrieBag
-  , completions
-  , prefixedBy
-  , showTrie
-  , withInfix
+  , TrieMap
+  , TrieSet
+  , lookup
+  , member
+  , insert
+  , delete
+  , assocs
+  , complete
+  , fromList
   ) where
 
-import           Control.Lens    hiding (children)
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Maybe
-import           GHC.Exts        (IsList(..))
-import           Prelude         hiding (lookup)
-import           Test.QuickCheck
+import           Control.Applicative
 import           Control.Monad
+import           Data.Coerce
+import           Data.Foldable
+import           Data.Map            (Map)
+import qualified Data.Map            as Map
+import           Data.Maybe
+import           Data.Monoid
+import           Prelude             hiding (lookup)
+import           Test.QuickCheck
 
-data Trie a b = Trie
-   { _trieEndHere  :: b
-   , _trieChildren :: Map a (Trie a b)
-   } deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+data Trie_ a b = Trie_
+  { endHere_  :: b
+  , children_ :: Map a (Trie_ a b)
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-makeFields ''Trie
+instance (Ord a, Monoid b) => Monoid (Trie_ a b) where
+  mempty = Trie_ mempty Map.empty
+  mappend (Trie_ a m) (Trie_ b n) = Trie_ (mappend a b) (Map.unionWith mappend m n)
 
-instance (Ord a, Arbitrary a, Arbitrary b) => Arbitrary (Trie a b) where
-  arbitrary = sized arb where
-    arb n
-      | n <= 0 = flip Trie Map.empty <$> arbitrary
-      | otherwise = do
-          keys <- arbitrary
-          list <- traverse (\key -> (,) key <$> arb m) keys
-          frst <- arbitrary
-          pure (Trie frst (Map.fromList list))
-          where m = n `div` 5
+lookup_ :: (Foldable f, Ord a, Monoid b) => f a -> Trie_ a b -> b
+lookup_ = foldr f endHere_ where
+  f e a = foldMap a . Map.lookup e . children_
 
-data TrieSet a where TrieSet :: Trie a Bool -> TrieSet [a]
+complete_ :: (Foldable f, Ord a, Monoid b) => f a -> Trie_ a b -> Trie_ a b
+complete_ = foldr f id where
+  f e a = foldMap a . Map.lookup e . children_
 
-deriving instance Eq a => Eq (TrieSet [a])
-deriving instance Ord a => Ord (TrieSet [a])
+insert_ :: (Foldable f, Ord a, Monoid b) => f a -> b -> Trie_ a b -> Trie_ a b
+insert_ xs v = foldr f b xs where
+  b (Trie_ p c) = Trie_ (mappend v p) c
+  f e a (Trie_ n c) = Trie_ n (Map.alter (Just . a . fromMaybe mempty) e c)
 
-instance (Ord a, Arbitrary a) => Arbitrary (TrieSet [a]) where
-  arbitrary = TrieSet <$> arbitrary
+delete_ :: (Ord a, Foldable f, Val b) => f a -> Trie_ a b -> Trie_ a b
+delete_ xs = fold . foldr f b xs where
+  b (Trie_ _ m) | Map.null m = Nothing
+                | otherwise = Just (Trie_ mempty m)
+  f e a (Trie_ n c) = nilIfEmpty (Trie_ n (Map.alter (a=<<) e c))
+  nilIfEmpty (Trie_ e c) | isEmpty e && null c = Nothing
+                         | otherwise = Just (Trie_ e c)
 
-class (HasChildren a (Map keyEl (Trie keyEl end)), HasEndHere a end) => AsTrie a keyEl end where
-  trie :: Iso' a (Trie keyEl end)
+foldrWithKey_ :: ([a] -> b -> c -> c) -> c -> Trie_ a b -> c
+foldrWithKey_ f b (Trie_ e c) = Map.foldrWithKey ff s c where
+  s = f [] e b
+  ff k = flip (foldrWithKey_ $ f . (k:))
 
-instance AsTrie (Trie a b) a b where trie = simple
-
-instance HasEndHere (TrieSet [a]) Bool where endHere = trie.endHere
-instance HasChildren (TrieSet [a]) (Map a (Trie a Bool)) where children = trie.children
-instance AsTrie (TrieSet [a]) a Bool where trie = iso (\(TrieSet t) -> t) TrieSet
-
-newtype TrieMap a b = TrieMap
-  { _getTrieMap :: Trie a (Maybe b)
-  } deriving (Eq, Ord, Functor, Foldable, Traversable, Arbitrary)
-
-instance HasEndHere (TrieMap a b) (Maybe b) where endHere = trie.endHere
-instance HasChildren (TrieMap a b) (Map a (Trie a (Maybe b))) where children = trie.children
-instance AsTrie (TrieMap a b) a (Maybe b) where trie = coerced
-
-newtype TrieBag a f b = TrieBag
-  { _getTrieBag :: Trie a (f b)
-  } deriving (Eq, Ord, Functor, Foldable, Traversable, Arbitrary)
-
-instance HasEndHere (TrieBag a f b) (f b) where endHere = trie.endHere
-instance HasChildren (TrieBag a f b) (Map a (Trie a (f b))) where children = trie.children
-instance AsTrie (TrieBag a f b) a (f b) where trie = coerced
-
-class Nullable a where isEmpty :: a -> Bool
-instance Foldable f => Nullable (TrieBag a f b) where isEmpty = null
-instance Nullable (TrieSet [a]) where isEmpty = null
-instance Nullable (TrieMap a b) where isEmpty = null
-
-nilIfEmpty :: Nullable a => a -> Maybe a
-nilIfEmpty x = if isEmpty x then Nothing else Just x
-
-foldrWithKey :: AsTrie t a b => ([a] -> b -> c -> c) -> c -> t -> c
-foldrWithKey f i t = Map.foldrWithKey ff s (t^.children) where
-  s = f [] (t^.endHere) i
-  ff k = flip (foldrWithKey $ f . (k:))
-
-foldMapWithKey :: (AsTrie t a b, Monoid m) => ([a] -> b -> m) -> t -> m
-foldMapWithKey f t = s $ Map.foldMapWithKey ff (t^.children) where
-  s = mappend (f [] (t^.endHere))
-  ff k = foldMapWithKey $ f . (k :)
+foldMapWithKey_ :: Monoid m => ([a] -> b -> m) -> Trie_ a b -> m
+foldMapWithKey_ f (Trie_ e c) = s $ Map.foldMapWithKey ff c where
+  s = mappend (f [] e)
+  ff k = foldMapWithKey_ $ f . (k :)
 
 bool :: a -> a -> Bool -> a
 bool t _ True  = t
 bool _ f False = f
 
-instance Foldable TrieSet where
-  foldr f i (TrieSet t) = foldrWithKey (\k -> bool (f k) id) i t
-  foldMap f (TrieSet t) = foldMapWithKey (\k -> bool (f k) mempty) t
-  length (TrieSet s) = size' s where
-    size' t = if t^.endHere then 1 + r else r where
-      r = Map.foldl' (\a e -> a + size' e) 0 (t^.children)
+data TrieSet a where TrieSet :: Trie_ a Any -> TrieSet [a]
+data TrieBag a where TrieBag :: Trie_ a (Sum Int) -> TrieBag [a]
 
-union :: (Ord a, AsTrie t a b) => (b -> b -> b) -> t -> t -> t
-union fb t = (children %~ Map.unionWith (union fb) (t^.children)) . (endHere %~ fb (t^.endHere))
+instance Foldable Last where
+  foldr _ b (Last Nothing ) = b
+  foldr f b (Last (Just e)) = f e b
+  foldMap _ (Last Nothing ) = mempty
+  foldMap f (Last (Just e)) = f e
+
+instance Traversable Last where
+  traverse f (Last m) = Last <$> traverse f m
+
+newtype TrieMap a b = TrieMap
+  { _getTrieMap :: Trie_ a (Last b)
+  } deriving (Eq, Ord, Functor, Foldable, Traversable)
+
+newtype TrieBin a b = TrieBin
+  { _getTrieBin :: Trie_ a [b]
+  } deriving (Eq, Ord, Functor, Foldable, Traversable)
+
+instance Foldable TrieSet where
+  foldr f b (TrieSet t) = foldrWithKey_ (\k -> bool (f k) id . getAny) b t
+  foldMap f (TrieSet t) = foldMapWithKey_ (\k -> bool (f k) mempty . getAny) t
+  length (TrieSet s) = size' s where
+    size' (Trie_ (Any e) c) = if e then 1 + r else r where
+      r = Map.foldl' (\a t -> a + size' t) 0 c
+
+instance Foldable TrieBag where
+  foldr f b (TrieBag t) = foldrWithKey_ (\k -> rep (f k) . getSum) b t where
+    rep h = go where
+      go 0 x = x
+      go n x = go (n-1) (h x)
+  foldMap f (TrieBag t) = foldMapWithKey_ (\k -> rep (f k) . getSum) t where
+    rep x = go where
+      go 0 = mempty
+      go n = mappend x (go (n-1))
+  length (TrieBag s) = size' s where
+    size' (Trie_ (Sum e) c) = e + r where
+      r = Map.foldl' (\a t -> a + size' t) 0 c
+
+class Monoid t => Trie t where
+  type Key t :: *
+  type ValRep t :: *
+  toRep :: t -> Trie_ (Key t) (ValRep t)
+  fromRep :: Trie_ (Key t) (ValRep t) -> t
+
+class Monoid m => Val m where
+  type MayVal m :: *
+  type SureVal m :: *
+  repToMay :: m -> MayVal m
+  sureToRep :: SureVal m -> m
+  repToList :: m -> [SureVal m]
+  isEmpty :: m -> Bool
+
+instance Val Any where
+  type MayVal Any = Bool
+  type SureVal Any = Bool
+  repToMay = getAny
+  sureToRep = Any
+  repToList (Any False) = []
+  repToList (Any True) = [True]
+  isEmpty (Any b) = not b
+
+instance Val (Sum Int) where
+  type MayVal (Sum Int) = Int
+  type SureVal (Sum Int) = Int
+  repToMay = getSum
+  sureToRep = Sum
+  repToList (Sum n) = replicate n 1
+  isEmpty (Sum n) = n <= 0
+
+instance Val [a] where
+  type SureVal [a] = a
+  type MayVal [a] = [a]
+  repToMay = id
+  sureToRep = pure
+  repToList = id
+  isEmpty [] = True
+  isEmpty _ = False
+
+instance Val (Last b) where
+  type SureVal (Last b) = b
+  type MayVal (Last b) = Maybe b
+  repToMay = getLast
+  sureToRep = Last . Just
+  repToList = toList
+  isEmpty (Last Nothing) = True
+  isEmpty _ = False
+
+instance Ord a => Trie (TrieSet [a]) where
+  type Key (TrieSet [a]) = a
+  type ValRep (TrieSet [a]) = Any
+  toRep (TrieSet t) = t
+  fromRep = TrieSet
+
+instance Ord a => Trie (TrieBag [a]) where
+  type Key (TrieBag [a]) = a
+  type ValRep (TrieBag [a]) = Sum Int
+  toRep (TrieBag t) = t
+  fromRep = TrieBag
+
+instance Ord a => Trie (TrieMap a b) where
+  type Key (TrieMap a b) = a
+  type ValRep (TrieMap a b) = Last b
+  toRep = coerce
+  fromRep = coerce
+
+instance Ord a => Trie (TrieBin a b) where
+  type Key (TrieBin a b) = a
+  type ValRep (TrieBin a b) = [b]
+  toRep = coerce
+  fromRep = coerce
+
+lookup :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> t -> MayVal (ValRep t)
+lookup xs = repToMay . lookup_ xs . toRep
+
+member :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> t -> Bool
+member xs = not . isEmpty . lookup_ xs . toRep
+
+insert :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> SureVal (ValRep t) -> t -> t
+insert xs v = fromRep . insert_ xs (sureToRep v) . toRep
+
+fromList :: (Foldable f, Foldable g, Trie t, Ord (Key t), Val (ValRep t)) => f (g (Key t), SureVal (ValRep t)) -> t
+fromList = foldr (uncurry insert) mempty
+
+fromList' :: (Trie t, Ord (Key t), Val (ValRep t)) => [([Key t], SureVal (ValRep t))] -> t
+fromList' = foldr (uncurry insert) mempty
+
+delete :: (Trie t, Foldable f, Ord (Key t), Val (ValRep t)) => f (Key t) -> t -> t
+delete xs = fromRep . delete_ xs . toRep
+
+assocs :: (Trie t, Val (ValRep t)) => t -> [([Key t],SureVal (ValRep t))]
+assocs = traverse repToList <=< foldrWithKey_ (\k v a -> (k,v):a) [] . toRep
+
+complete :: (Trie t, Val (ValRep t), Foldable f, Ord (Key t)) => f (Key t) -> t -> t
+complete xs = fromRep . complete_ xs . toRep
+
+instance Show a => Show (TrieSet [a]) where
+  show = show . toList
 
 instance Ord a => Monoid (TrieSet [a]) where
-  mappend = union (||)
-  mempty  = TrieSet (Trie False Map.empty)
+  mempty = TrieSet mempty
+  mappend (TrieSet x) (TrieSet y) = TrieSet (mappend x y)
+
+instance (Ord a, Arbitrary a) => Arbitrary (TrieSet [a]) where
+  arbitrary = fmap fromList' arbitrary
+
+instance Show a => Show (TrieBag [a]) where
+  show = show . toList
+
+instance Ord a => Monoid (TrieBag [a]) where
+  mempty = TrieBag mempty
+  mappend (TrieBag x) (TrieBag y) = TrieBag (mappend x y)
+
+instance (Ord a, Arbitrary a) => Arbitrary (TrieBag [a]) where
+  arbitrary = fmap (fromList' . (map.fmap) abs) arbitrary
+
+instance (Show a, Show b, Ord a) => Show (TrieBin a b) where
+  show = ("fromList "++) . show . assocs
+
+instance Ord a => Monoid (TrieBin a b) where
+  mempty = TrieBin mempty
+  mappend (TrieBin x) (TrieBin y) = TrieBin (mappend x y)
+
+instance (Ord a, Arbitrary a, Arbitrary b) => Arbitrary (TrieBin a b) where
+  arbitrary = fmap fromList' arbitrary
+
+instance (Show a, Show b, Ord a) => Show (TrieMap a b) where
+  show = ("fromList "++) . show . assocs
 
 instance Ord a => Monoid (TrieMap a b) where
-  mappend = union (`maybe` Just)
-  mempty  = TrieMap (Trie Nothing Map.empty)
+  mempty = TrieMap mempty
+  mappend (TrieMap x) (TrieMap y) = TrieMap (mappend x y)
 
-instance (Ord a, Monoid (f b)) => Monoid (TrieBag a f b) where
-  mappend = union mappend
-  mempty = TrieBag (Trie mempty Map.empty)
-
-insert :: (Ord a, Foldable f, AsTrie t a b, Monoid t) => f a -> b -> t -> t
-insert = insert' mempty where
-  insert' :: (Ord a, Foldable f, AsTrie t a b) => t -> f a -> b -> t -> t
-  insert' m xs x = over trie $ foldr f (endHere .~ x) xs where
-    f e a = over (children . at e) (Just . a . fromMaybe m')
-    m' = m ^. trie
-
-instance Ord a => IsList (TrieSet [a]) where
-  type Item (TrieSet [a]) = [a]
-  fromList = foldr (`insert` True) mempty
-  toList = foldr (:) []
-
-instance Ord a => IsList (TrieMap a b) where
-  type Item (TrieMap a b) = ([a],b)
-  fromList = foldr (\(xs,v) -> insert xs (Just v)) mempty
-  toList = foldrWithKey (\k v a -> maybe a (\y -> (k,y) : a) v) []
-
-instance (Ord a, Monoid (f b), Foldable f) => IsList (TrieBag a f b) where
-  type Item (TrieBag a f b) = ([a], f b)
-  fromList = foldr (uncurry insert) mempty
-  toList = foldrWithKey (\k v a -> if null v then a else (k,v) : a) []
-
-instance (Ord a, Show a) => Show (TrieSet [a]) where
-  show = ("fromList " ++) . show . toList
-
-instance (Ord a, Show a, Show b) => Show (TrieMap a b) where
-  show = ("fromList " ++) . show . toList
-
-instance (Ord a, Show a, Show (f b), Monoid (f b), Foldable f) => Show (TrieBag a f b) where
-  show = ("fromList " ++) . show . toList
-
-prefixedBy :: (Ord a, Foldable f, AsTrie t a b, Monoid t) => f a -> t -> t
-prefixedBy = begins' mempty where
-  begins' :: (Ord a, Foldable f, AsTrie t a b) => t -> f a -> t -> t
-  begins' m xs = trie %~ fromMaybe m' . foldr f Just xs where
-    f e a t = do
-      child <- view (children . at e) t
-      m' & (children . at e . traverse) (const $ a child)
-    m' = m ^. trie
-
-withInfix :: (Ord a, Foldable f, AsTrie t a b, Monoid t, Nullable t)
-          => f a -> t -> t
-withInfix = infs' nilIfEmpty mempty mappend where
-  infs' :: (Ord a, Foldable f, AsTrie t a b)
-        => (t -> Maybe t) -> t -> (t -> t -> t) -> f a -> t -> t
-  infs' e n m = over trie . infs'' (from trie e) (n ^. trie) mpp  where
-    mpp x y =  from trie m x (y ^. from trie)
-  infs'' nie emp mpp x = go x where
-    go xs = trie %~ foldr f id xs
-    f e a t =
-      (children . at e .~ (nie . a =<< t ^. children . at e) $ emp) `mpp`
-      (children .~ Map.mapMaybe (nie . go x) (t^.children) $ emp)
-
-showTrie :: AsTrie t a b => (a -> Char) -> (b -> Char) -> t -> String
-showTrie a c = views trie (unlines . showTrie') where
-  showTrie' = views children (ff <=< Map.assocs)
-  ff (k,t) = zipWith (++) pads $ case showTrie' t of
-    [] -> [[]]
-    r -> r
-    where pads = [a k, views endHere c t] : repeat "  "
-
-completions :: (AsTrie t a b, Ord a, Foldable s, Nullable t, Monoid t)
-      => s a -> Lens' t t
-completions = alter' nilIfEmpty mempty where
-  alter' :: (Foldable s, AsTrie t a b, Functor f, Ord a)
-         => (t -> Maybe t) -> t -> s a -> (t -> f t) -> t -> f t
-  alter' nie empt xs i = trie (foldr f (from trie i) xs) where
-    f e a = (children . at e) (fmap nie' . a . orEmpt)
-    nie' = from trie nie
-    orEmpt = fromMaybe (view trie empt)
-
-type instance Index (TrieMap a b) = [a]
-type instance IxValue (TrieMap a b) = b
-instance Ord a => Ixed (TrieMap a b) where ix i = completions i . endHere . traverse
-
-type instance Index (TrieBag a f b) = [a]
-type instance IxValue (TrieBag a f b) = f b
-instance (Traversable f, Ord a, Monoid (f b)) => Ixed (TrieBag a f b) where
-  ix i = completions i . endHere
-
-type instance Index (TrieSet [a]) = [a]
-type instance IxValue (TrieSet [a]) = Bool
-instance Ord a => Ixed (TrieSet [a]) where
-  ix i = completions i . endHere
-
-instance Ord a => Contains (TrieSet [a]) where
-  contains i = completions i . endHere
-
-instance Ord a => At (TrieMap a b) where at i = completions i . endHere
-
-instance (Traversable f, Ord a, Monoid (f b)) => At (TrieBag a f b) where
-  at i f = completions i . endHere $ (fmap (fromMaybe mempty) . f . nie) where
-    nie t = if null t then Nothing else Just t
+instance (Ord a, Arbitrary a, Arbitrary b) => Arbitrary (TrieMap a b) where
+  arbitrary = fmap fromList' arbitrary

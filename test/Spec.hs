@@ -12,6 +12,7 @@ import           GHC.Exts
 import           System.Exit
 import           Test.QuickCheck
 import qualified Test.QuickCheck.Property as P
+import Test.DocTest
 
 prop_checkFromList :: [String] -> Bool
 prop_checkFromList = sameResult (tfl.toList.tfl) tfl
@@ -48,4 +49,6 @@ runTests :: IO Bool
 runTests = $forAllProperties quickCheckExit
 
 main :: IO Bool
-main = runTests
+main = do
+  doctest ["-isrc", "src/Data/Trie.hs"]
+  runTests
