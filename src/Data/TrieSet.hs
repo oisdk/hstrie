@@ -17,7 +17,6 @@ import           Data.Trie       (Trie (..))
 import qualified Data.Trie       as Trie
 import           Test.QuickCheck
 
-
 data TrieSet a where TrieSet :: Trie a Any -> TrieSet [a]
 
 deriving instance Eq a => Eq (TrieSet [a])

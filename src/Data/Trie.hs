@@ -59,4 +59,3 @@ foldMapWithKey f (Trie e c) = s $ Map.foldMapWithKey ff c where
 
 assocs :: Foldable f => Trie a (f b) -> [([a], b)]
 assocs = traverse toList <=< foldrWithKey (\k v a -> (k,v):a) []
-
