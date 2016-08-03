@@ -1,5 +1,6 @@
 dist
 cabal-dev
+.stack-work/
 *.o
 *.hi
 *.chi
@@ -14,8 +15,6 @@ cabal.sandbox.config
 *.prof
 *.aux
 *.hp
-
-*.0-5ecc1f7c4136a73a8a2d5b258a910717
 
 *.dylib
 
