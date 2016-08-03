@@ -11,12 +11,12 @@ module Data.TrieBag
   , fromList
   ) where
 
-import qualified Data.Map    as Map
+import qualified Data.Map        as Map
 import           Data.Monoid
-import           Data.Trie   (Trie (..))
-import qualified Data.Trie   as Trie
-import           Prelude     hiding (lookup)
-import Test.QuickCheck
+import           Data.Trie       (Trie (..))
+import qualified Data.Trie       as Trie
+import           Prelude         hiding (lookup)
+import           Test.QuickCheck
 
 data TrieBag a where TrieBag :: Trie a (Sum Int) -> TrieBag [a]
 
