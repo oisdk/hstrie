@@ -11,11 +11,13 @@ module Data.TrieBin
   , insert
   , fromList
   , assocs
+  , filter
   ) where
 
 import           Data.Trie       (Trie (..))
 import qualified Data.Trie       as Trie
-import           Prelude         hiding (lookup)
+import           Prelude         hiding (lookup, filter)
+import qualified Prelude as P
 import           Test.QuickCheck
 
 newtype TrieBin a b = TrieBin
@@ -39,6 +41,13 @@ fromList = foldr (uncurry insert) mempty
 
 assocs :: TrieBin a b -> [([a],b)]
 assocs = Trie.assocs . getTrieBin
+
+-- |
+-- prop> \xs (Blind p) -> (filter p . fromList) xs === (fromList . P.filter (p.snd)) (xs :: [(String,Int)])
+filter :: Ord a => (b -> Bool) -> TrieBin a b -> TrieBin a b
+filter p (TrieBin t) = TrieBin (Trie.mapMaybe (nie . P.filter p) t) where
+  nie [] = Nothing
+  nie xs = Just xs
 
 instance (Show a, Show b) => Show (TrieBin a b) where
   show = ("fromList" ++) . show . assocs

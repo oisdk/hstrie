@@ -9,13 +9,14 @@ module Data.TrieBag
   , complete
   , insert
   , fromList
+  , filter
   ) where
 
 import qualified Data.Map        as Map
 import           Data.Monoid
 import           Data.Trie       (Trie (..))
 import qualified Data.Trie       as Trie
-import           Prelude         hiding (lookup)
+import           Prelude         hiding (lookup, filter)
 import           Test.QuickCheck
 
 data TrieBag a where TrieBag :: Trie a (Sum Int) -> TrieBag [a]
@@ -56,6 +57,11 @@ instance Foldable TrieBag where
   length (TrieBag s) = size' s where
     size' (Trie (Sum e) c) = e + r where
       r = Map.foldl' (\a t -> a + size' t) 0 c
+
+-- |
+-- prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]
+filter :: Ord a => ([a] -> Bool) -> TrieBag [a] -> TrieBag [a]
+filter p (TrieBag t) = TrieBag (Trie.filterWithKey ((0<).getSum) p t)
 
 instance Show a => Show (TrieBag [a]) where show = show . foldr (:) []
 

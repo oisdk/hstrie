@@ -14,7 +14,11 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Trie, Data.TrieSet, Data.TrieMap, Data.TrieBag, Data.TrieBin
+  exposed-modules:     Data.Trie
+                     , Data.TrieSet
+                     , Data.TrieMap
+                     , Data.TrieBag
+                     , Data.TrieBin
   build-depends:       base >= 4.7 && < 5
                      , containers >= 0.5
                      , QuickCheck >= 2.8
@@ -32,6 +36,17 @@ test-suite hstrie-test
                      , containers >= 0.5
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+
+benchmark bench
+  default-language:    Haskell2010
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      bench
+  main-is:             bench.hs
+  ghc-options:         -O2 -rtsopts -threaded
+
+  build-depends:       base >= 4.8
+                     , hstrie
+                     , criterion >= 0.6
 
 source-repository head
   type:     git

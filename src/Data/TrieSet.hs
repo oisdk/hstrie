@@ -13,6 +13,7 @@ module Data.TrieSet
   , filter
   ) where
 
+import           Data.Foldable
 import qualified Data.Map        as Map
 import           Data.Monoid
 import           Data.Trie       (Trie (..))
