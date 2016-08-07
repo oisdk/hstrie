@@ -54,14 +54,29 @@ prefixedBy xs = fold . foldr f Just xs where
 
 delete :: (Ord a, Foldable f, Monoid b)
        => (b -> Bool) -> f a -> Trie a b -> Trie a b
-delete isEmpty xs = fold . foldr f b xs where
-  b (Trie _ m)
-    | Map.null m = Nothing
-    | otherwise = Just (Trie mempty m)
-  f e a (Trie n c) = nilIfEmpty (Trie n (Map.alter (a=<<) e c))
-  nilIfEmpty (Trie e c)
-    | isEmpty e && null c = Nothing
-    | otherwise = Just (Trie e c)
+delete isEmpty xs = fold . foldr f flipEnd xs where
+  f e a (Trie n c) = nilIfEmpty isEmpty (Trie n (Map.alter (a=<<) e c))
+
+filterWithKey :: (Ord a, Monoid b)
+              => (b -> Bool) -> ([a] -> Bool) -> Trie a b -> Trie a b
+filterWithKey isFull = (fold .) . f where
+  f p (Trie n c)
+    | not (isFull n) = Trie n <$> tn
+    | p [] = Just (Trie n t)
+    | otherwise = Trie mempty <$> tn
+    where
+      t = Map.mapMaybeWithKey (f . (p .) . (:)) c
+      tn = if Map.null t then Nothing else Just t
+
+nilIfEmpty :: (b -> Bool) -> Trie a b -> Maybe (Trie a b)
+nilIfEmpty isEmpty (Trie e c)
+  | isEmpty e && Map.null c = Nothing
+  | otherwise = Just (Trie e c)
+
+flipEnd :: Monoid b => Trie a b -> Maybe (Trie a b)
+flipEnd (Trie _ m)
+  | Map.null m = Nothing
+  | otherwise = Just (Trie mempty m)
 
 foldrWithKey :: ([a] -> b -> c -> c) -> c -> Trie a b -> c
 foldrWithKey f b (Trie e c) = f [] e r where

@@ -27,6 +27,9 @@ prop_orderedList :: [String] -> Property
 prop_orderedList xs =
   (foldr (:) [] . TrieSet.fromList) xs === (Set.toList . Set.fromList) xs
 
+prop_orderedListBag :: [String] -> Property
+prop_orderedListBag xs =
+  (foldr (:) [] . TrieBag.fromList) xs === sort xs
 
 quickCheckExit :: Testable prop => prop -> IO Result
 quickCheckExit = resultExit <=< quickCheckResult where
