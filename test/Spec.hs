@@ -23,6 +23,11 @@ prop_sameCont :: [(String,Int)] -> Property
 prop_sameCont xs =
   (sort . Map.toList . Map.fromList . reverse) xs === (sort . TrieMap.assocs . TrieMap.fromList) xs
 
+prop_orderedList :: [String] -> Property
+prop_orderedList xs =
+  (foldr (:) [] . TrieSet.fromList) xs === (Set.toList . Set.fromList) xs
+
+
 quickCheckExit :: Testable prop => prop -> IO Result
 quickCheckExit = resultExit <=< quickCheckResult where
   resultExit r@ Success{}  = pure r
