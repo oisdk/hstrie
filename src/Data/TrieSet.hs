@@ -48,7 +48,7 @@ instance Foldable TrieSet where
 -- prop> \xs -> all (`member ` fromList (xs :: [String])) (take 5 xs)
 member :: (Foldable f, Ord a) => f a -> TrieSet [a] -> Bool
 member xs (TrieSet t) = getAny (Trie.lookup xs t)
-
+{-# INLINE member #-}
 -- |
 -- prop> \xs -> conjoin [ (delete s . fromList) xs === fromList [ x | x <- xs, s /= x ] | s <- take 5 xs :: [String] ]
 delete :: (Foldable f, Ord a) => f a -> TrieSet [a] -> TrieSet [a]
@@ -62,6 +62,7 @@ prefixedBy xs (TrieSet t) = TrieSet (Trie.prefixedBy xs t)
 
 insert :: (Foldable f, Ord a) => f a -> TrieSet [a] -> TrieSet [a]
 insert xs (TrieSet t) = TrieSet (Trie.insert xs (Any True) t)
+{-# INLINE insert #-}
 
 -- |
 -- prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]

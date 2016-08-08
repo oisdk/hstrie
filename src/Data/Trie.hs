@@ -26,9 +26,9 @@ instance (Monoid b, Ord a) => Monoid (Trie a b) where
   mappend (Trie a c) (Trie b d) = Trie (a <> b) (Map.unionWith (<>) c d)
 
 lookup :: (Foldable f, Ord a, Monoid b) => f a -> Trie a b -> b
-lookup = foldl' f endHere where
-  f a e = foldMap a . Map.lookup e . children
-
+lookup = foldr f endHere where
+  f e a (Trie _ m) = foldMap a (Map.lookup e m)
+  {-# INLINE f #-}
 
 -- | Inserts a value into the Trie, mappending it with the previous, if
 -- a previous exists. The previous value is put to the right-hand-side
@@ -37,6 +37,7 @@ insert :: (Foldable f, Ord a, Monoid b) => f a -> b -> Trie a b -> Trie a b
 insert xs v = foldr f b xs where
   b (Trie p c) = Trie (v <> p) c
   f e a (Trie n c) = Trie n (Map.alter (Just . a . fold) e c)
+  {-# INLINE f #-}
 
 instance (Arbitrary a, Ord a, Arbitrary b, Monoid b)
   => Arbitrary (Trie a b) where

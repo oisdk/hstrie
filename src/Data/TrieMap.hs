@@ -50,6 +50,7 @@ insert xs v (TrieMap t) = TrieMap (Trie.insert xs (First (Just v)) t)
 
 fromList :: (Foldable f, Foldable g, Ord a) => f (g a, b) -> TrieMap a b
 fromList = foldr (uncurry insert) mempty
+{-# INLINE fromList #-}
 
 assocs :: TrieMap a b -> [([a],b)]
 assocs = Trie.assocs . getTrieMap

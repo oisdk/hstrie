@@ -47,6 +47,7 @@ benchmark bench
   build-depends:       base >= 4.8
                      , hstrie
                      , criterion >= 0.6
+                     , containers >= 0.5
 
 source-repository head
   type:     git

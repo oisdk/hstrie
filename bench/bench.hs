@@ -4,6 +4,7 @@ import Criterion.Main
 import Data.Maybe
 import qualified Data.TrieSet as TS
 import qualified Data.TrieMap as TM
+import qualified Data.Set as S
 
 uniqStrings :: [String]
 uniqStrings = flip (:) <$> [] : uniqStrings <*> ['a'..'z']
@@ -18,6 +19,10 @@ checkAll :: [String] -> Int
 checkAll ss = length (filter (`TS.member` t) ss) where
   t = TS.fromList ss
 
+checkAllS :: [String] -> Int
+checkAllS ss = length (filter (`S.member` t) ss) where
+  t = S.fromList ss
+
 lookupAll :: [(String,Int)] -> Int
 lookupAll ss = sum (mapMaybe (`TM.lookup` t) strings) where
   t = TM.fromList ss
@@ -25,7 +30,8 @@ lookupAll ss = sum (mapMaybe (`TM.lookup` t) strings) where
 main :: IO ()
 main = defaultMain
   [ bgroup "fromList" [ bench "1" $ whnf (TS.member "qtn" . TS.fromList) strings
-                      , bench "2" $ whnf (TS.member "qto" . TS.fromList) strings ]
-  , bgroup "member"   [ bench "1" $ whnf checkAll strings ]
+                      , bench "2" $ whnf (TS.member "qto" . TS.fromList) strings
+                      , bench "3" $ whnf (S.member "qto" . S.fromList) strings ]
+  , bgroup "member"   [ bench "1" $ whnf checkAll strings
+                      , bench "2" $ whnf checkAllS strings ]
   , bgroup "lookup"   [ bench "1" $ whnf lookupAll assocs ] ]
-
