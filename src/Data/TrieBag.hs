@@ -49,17 +49,18 @@ instance Foldable TrieBag where
   foldr f b (TrieBag t) = Trie.foldrWithKey (\k -> rep (f k) . getSum) b t where
     rep h = go where
       go 0 x = x
-      go n x = go (n-1) (h x)
-  foldMap f (TrieBag t) = Trie.foldMapWithKey (\k -> rep (f k) . getSum) t where
-    rep m = go where
-      go 0 = mempty
-      go n = m <> go (n-1)
+      go n x = h (go (n-1) x)
+  foldMap f (TrieBag t) = Trie.foldMapWithKey rep t where
+    rep _ (Sum 0) = mempty
+    rep k (Sum r) = go m r where
+      m = f k
+      go a 1 = a
+      go a n = go (m <> a) (n-1)
   length (TrieBag s) = size' s where
     size' (Trie (Sum e) c) = e + r where
       r = Map.foldl' (\a t -> a + size' t) 0 c
 
--- |
--- prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]
+-- | prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]
 filter :: Ord a => ([a] -> Bool) -> TrieBag [a] -> TrieBag [a]
 filter p (TrieBag t) = TrieBag (Trie.filterWithKey ((0<).getSum) p t)
 

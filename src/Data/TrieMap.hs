@@ -43,8 +43,7 @@ delete xs (TrieMap t) = TrieMap (Trie.delete isEmpty xs t) where
 complete :: (Foldable f, Ord a) => f a -> TrieMap a b -> TrieMap a b
 complete xs (TrieMap t) = TrieMap (Trie.complete xs t)
 
--- |
--- prop> \t k v1 v2 -> insert (k :: String) (v2 :: Int) t === insert k v2 (insert k v1 t)
+-- | prop> \t k v1 v2 -> insert (k :: String) (v2 :: Int) t === insert k v2 (insert k v1 t)
 insert :: (Foldable f, Ord a) => f a -> b -> TrieMap a b -> TrieMap a b
 insert xs v (TrieMap t) = TrieMap (Trie.insert xs (First (Just v)) t)
 
@@ -55,12 +54,13 @@ fromList = foldr (uncurry insert) mempty
 assocs :: TrieMap a b -> [([a],b)]
 assocs = Trie.assocs . getTrieMap
 
--- |
--- prop> \xs (Blind p) -> fromList [ (k :: String,v :: Int) | (k,v) <- assocs xs, p v ] === filter p xs
+-- | prop> \xs (Blind p) -> fromList [ (k :: String,v :: Int) | (k,v) <- assocs xs, p v ] === filter p xs
 filter :: Ord a => (b -> Bool) -> TrieMap a b -> TrieMap a b
 filter p (TrieMap t) = TrieMap (Trie.mapMaybe f t) where
   f (First (Just x)) | p x = Just (First (Just x))
   f _ = Nothing
 
+-- | >>> fromList [("a",1),("b",2)]
+-- fromList [("a",1),("b",2)]
 instance (Show a, Show b) => Show (TrieMap a b) where
-  show = ("fromList" ++) . show . assocs
+  show = ("fromList " ++) . show . assocs

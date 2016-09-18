@@ -44,13 +44,12 @@ instance Foldable TrieSet where
     size' (Trie (Any e) c) = if e then 1 + r else r where
       r = Map.foldl' (\a t -> a + size' t) 0 c
 
--- |
--- prop> \xs -> all (`member ` fromList (xs :: [String])) (take 5 xs)
+-- | prop> \xs -> all (`member ` fromList (xs :: [String])) (take 5 xs)
 member :: (Foldable f, Ord a) => f a -> TrieSet [a] -> Bool
 member xs (TrieSet t) = getAny (Trie.lookup xs t)
 {-# INLINE member #-}
--- |
--- prop> \xs -> conjoin [ (delete s . fromList) xs === fromList [ x | x <- xs, s /= x ] | s <- take 5 xs :: [String] ]
+
+-- | prop> \xs -> conjoin [ (delete s . fromList) xs === fromList [ x | x <- xs, s /= x ] | s <- take 5 xs :: [String] ]
 delete :: (Foldable f, Ord a) => f a -> TrieSet [a] -> TrieSet [a]
 delete xs (TrieSet t) = TrieSet (Trie.delete (not.getAny) xs t)
 
@@ -64,8 +63,7 @@ insert :: (Foldable f, Ord a) => f a -> TrieSet [a] -> TrieSet [a]
 insert xs (TrieSet t) = TrieSet (Trie.insert xs (Any True) t)
 {-# INLINE insert #-}
 
--- |
--- prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]
+-- | prop> \xs (Blind p) -> (filter p . fromList) (xs :: [String]) === fromList [ x | x <- xs, p x ]
 filter :: Ord a => ([a] -> Bool) -> TrieSet [a] -> TrieSet [a]
 filter p (TrieSet t) = TrieSet (Trie.filterWithKey getAny p t)
 

@@ -101,3 +101,11 @@ foldMapWithKey f (Trie e c) = s $ Map.foldMapWithKey ff c where
 
 assocs :: Foldable f => Trie a (f b) -> [([a], b)]
 assocs = traverse toList <=< foldrWithKey (\k v a -> (k,v):a) []
+
+showTrie :: (a -> Char) -> (b -> Char) -> Trie a b -> String
+showTrie a c = unlines . showTrie' where
+  showTrie' t = (ff <=< Map.assocs) (children t)
+  ff (k,t) = zipWith (++) pads $ case showTrie' t of
+    [] -> [[]]
+    r -> r
+    where pads = [a k, c $ endHere t] : repeat "  "

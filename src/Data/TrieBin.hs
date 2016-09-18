@@ -42,8 +42,7 @@ fromList = foldr (uncurry insert) mempty
 assocs :: TrieBin a b -> [([a],b)]
 assocs = Trie.assocs . getTrieBin
 
--- |
--- prop> \xs (Blind p) -> (filter p . fromList) xs === (fromList . P.filter (p.snd)) (xs :: [(String,Int)])
+-- | prop> \xs (Blind p) -> (filter p . fromList) xs === (fromList . P.filter (p.snd)) (xs :: [(String,Int)])
 filter :: Ord a => (b -> Bool) -> TrieBin a b -> TrieBin a b
 filter p (TrieBin t) = TrieBin (Trie.mapMaybe (nie . P.filter p) t) where
   nie [] = Nothing
