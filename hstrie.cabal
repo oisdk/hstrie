@@ -16,7 +16,6 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.Trie
                      , Data.TrieSet
-                     , Data.TrieMap
   build-depends:       base >= 4.9 && < 5
                      , containers >= 0.5
                      , QuickCheck >= 2.8

@@ -4,22 +4,27 @@
 
 module Data.TrieSet
   ( TrieSet
+  , TrieBag
   , member
   , add
   , fromList
   , delete
   ) where
 
-import           Prelude        hiding (filter)
+import           Prelude         hiding (filter)
 
 import           Data.Monoid
-import           Data.Semigroup (stimesMonoid)
+import           Data.Semigroup  (stimesMonoid)
 import           Data.Semiring
 
-import           Data.Trie      (Trie (..))
-import qualified Data.Trie      as Trie
+import           Data.Trie       (Trie (..))
+import qualified Data.Trie       as Trie
+
+import           Test.QuickCheck (Arbitrary (..), Gen)
 
 data TrieSet b a where TrieSet :: Trie a (Add b) -> TrieSet b [a]
+
+type TrieBag = TrieSet Int
 
 deriving instance (Eq a, Eq b) => Eq (TrieSet b [a])
 deriving instance (Ord a, Ord b) => Ord (TrieSet b [a])
@@ -37,12 +42,10 @@ instance Enum b => Foldable (TrieSet b) where
   null (TrieSet Empty) = True
   null _ = False
 
--- | prop> \xs -> all (`member ` fromList (xs :: [String])) (take 5 xs)
 member :: (Ord a, Semiring b) => [a] -> TrieSet b [a] -> b
 member xs (TrieSet t) = getAdd (Trie.lookup xs t)
 {-# INLINE member #-}
 
--- | prop> \xs -> conjoin [ (delete s . fromList) xs === fromList [ x | x <- xs, s /= x ] | s <- take 5 xs :: [String] ]
 delete :: (Ord a, Semiring b, Enum b) => [a] -> TrieSet b [a] -> TrieSet b [a]
 delete xs (TrieSet t) = TrieSet (Trie.delete ((0<).fromEnum.getAdd) xs t)
 
@@ -54,6 +57,9 @@ instance (Show a, Enum b) => Show (TrieSet b [a]) where show = show . foldr (:) 
 
 fromList :: (Foldable f, Ord a, Semiring b) => f [a] -> TrieSet b [a]
 fromList = foldr add mempty
+
+instance (Arbitrary a, Semiring b, Ord a) => Arbitrary (TrieSet b [a]) where
+  arbitrary = fmap fromList (arbitrary :: Arbitrary a => Gen [a])
 
 rep :: Int -> (a -> a) -> a -> a
 rep m f x = go m where

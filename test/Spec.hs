@@ -1,51 +1,47 @@
-{-# LANGUAGE TemplateHaskell #-}
+module Main (main) where
 
-import           Control.Monad
-import           Data.Functor
-import qualified Data.Map        as Map
-import qualified Data.Set        as Set
--- import qualified Data.Trie       as Trie
-import qualified Data.TrieMap    as TrieMap
-import           Data.TrieSet    (TrieSet)
+import           Data.TrieSet    (TrieBag, TrieSet)
 import qualified Data.TrieSet    as TrieSet
--- import Data.TrieMap (TrieMap)
-import           Data.List
-import           System.Exit
+
 import           Test.DocTest
 import           Test.QuickCheck
 
-prop_sameSize :: [String] -> Property
-prop_sameSize xs =
-  length (Set.fromList xs) === length (TrieSet.fromList xs :: TrieSet Bool String)
+addIsMember :: TrieSet Bool String -> String -> Bool
+addIsMember t xs = TrieSet.member xs (TrieSet.add xs t)
 
--- prop_sameCont :: [(String,Int)] -> Property
--- prop_sameCont xs =
---   (sort . Map.toList . Map.fromList . reverse) xs === (sort . TrieMap.assocs . TrieMap.fromList) xs
+setOrderDoesntMatter :: [String] -> Property
+setOrderDoesntMatter xs =
+  (TrieSet.fromList xs :: TrieSet Bool String) === TrieSet.fromList ys .&&.
+  (TrieSet.fromList xs :: TrieBag String) === TrieSet.fromList ys
+  where ys = reverse xs
 
-prop_orderedList :: [String] -> Property
-prop_orderedList xs =
-  (foldr (:) [] . (TrieSet.fromList :: [String] -> TrieSet Bool String)) xs === (Set.toList . Set.fromList) xs
+notMemberIsntMember :: [String] -> String -> Property
+notMemberIsntMember xs x =
+  TrieSet.member x (TrieSet.fromList xs) == elem x xs .&&.
+  TrieSet.member x (TrieSet.fromList xs) == length (filter (x==) xs)
 
-prop_orderedListBag :: [String] -> Property
-prop_orderedListBag xs =
-  (foldr (:) [] . (TrieSet.fromList :: [String] -> TrieSet Int String)) xs === sort xs
+fromListIsMember :: [String] -> Bool
+fromListIsMember xs = all (`TrieSet.member` t) xs
+  where t = TrieSet.fromList xs
 
-quickCheckExit :: Testable prop => prop -> IO Result
-quickCheckExit = resultExit <=< quickCheckResult where
-  resultExit r@ Success{}  = pure r
-  resultExit r = exitFailure $> r
+deletedIsntMember :: [String] -> Bool
+deletedIsntMember xs = let t = TrieSet.fromList xs in all not
+  [ TrieSet.member x (TrieSet.delete x t) | x <- xs ]
 
-return []
+insertDeleteId :: [String] -> String -> Property
+insertDeleteId xs x =
+  x `notElem` xs ==>
+    let ts = TrieSet.fromList xs :: TrieSet Bool String
+    in (TrieSet.delete x . TrieSet.add x) ts === ts
 
-runTests :: IO Bool
-runTests = $forAllProperties quickCheckExit
-
-main :: IO Bool
+main :: IO ()
 main = do
-  -- doctest [ "-isrc"
-  --         , "src/Data/Trie.hs"
-  --         , "src/Data/TrieBin.hs"
-  --         , "src/Data/TrieBag.hs"
-  --         , "src/Data/TrieMap.hs"
-  --         , "src/Data/TrieSet.hs" ]
-  runTests
+  quickCheck addIsMember
+  quickCheck setOrderDoesntMatter
+  quickCheck notMemberIsntMember
+  quickCheck fromListIsMember
+  quickCheck deletedIsntMember
+  quickCheck insertDeleteId
+  doctest [ "-isrc"
+          , "src/Data/Trie.hs"
+          , "src/Data/TrieSet.hs" ]

@@ -14,6 +14,8 @@ module Data.Trie
   , foldrWithKey
   , foldMapWithKey
   , assocs
+  , TrieMap
+  , TrieBin
   ) where
 
 import           Prelude         hiding (lookup)
@@ -22,33 +24,34 @@ import           Control.Monad   ((<=<))
 
 import           Data.Foldable
 
-import           Data.Map        (Map)
-import qualified Data.Map        as Map
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 import           Data.Vector     (Vector)
 import qualified Data.Vector     as Vector
 
-import           Data.Monoid
+import           Data.Monoid     (First, (<>))
 import           Data.Semiring
+
+import           Test.QuickCheck (Arbitrary (..), Gen)
 
 data Trie a b
   = Empty
   | Node b (Map a (Trie a b)) (Vector a)
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
--- |
--- prop> \xs ys zs -> (xs :: Trie Char String) <> (ys <> zs) === (xs <> ys) <> zs
--- prop> \xs -> xs <> mempty === (xs :: Trie Char String)
--- prop> \xs -> mempty <> xs === (xs :: Trie Char String)
+type TrieMap a b = Trie a (First b)
+type TrieBin a b = Trie a [b]
+
 instance (Ord a, Monoid b) => Monoid (Trie a b) where
   mempty = Empty
   mappend Empty t = t
   mappend t Empty = t
   mappend (Node s m xp) (Node t n yp) = followSplit xp (toList yp) . curry $ \case
-    (Just (x,xs),y:ys) -> Node mempty   (Map.fromList [(x, Node s m xs), (y, Node t n (Vector.fromList ys))])
-    (Nothing    ,y:ys) -> Node  s       (Map.insertWith mappend y (Node t n (Vector.fromList ys)) m)
-    (Just (x,xs),[]  ) -> Node       t  (Map.insertWith mappend x (Node s m xs) n)
-    (Nothing    ,[]  ) -> Node (s <> t) (Map.unionWith mappend m n)
+    (Just (x,xs),y:ys) -> Node mempty (Map.fromList [(x, Node s m xs), (y, Node t n (Vector.fromList ys))])
+    (Nothing    ,y:ys) -> Node  s     (Map.insertWith mappend y (Node t n (Vector.fromList ys)) m)
+    (Just (x,xs),[]  ) -> Node     t  (Map.insertWith mappend x (Node s m xs) n)
+    (Nothing    ,[]  ) -> Node (s<>t) (Map.unionWith mappend m n)
 
 lookup :: (Ord a, Monoid b) => [a] -> Trie a b -> b
 lookup _ Empty = mempty
@@ -63,10 +66,13 @@ insert :: (Ord a, Monoid b) => [a] -> b -> Trie a b -> Trie a b
 insert k v = go k where
   go xs Empty = Node v Map.empty (Vector.fromList xs)
   go xs (Node e m p) = followSplit p xs . curry $ \case
-    (Nothing    ,[]  ) -> Node (v <> e) m
+    (Nothing    ,[]  ) -> Node (v<>e) m
     (Nothing    ,z:zs) -> Node e      (Map.alter (Just . maybe (singleton (Vector.fromList zs) v) (go zs)) z m)
     (Just (y,ys),z:zs) -> Node mempty (Map.fromList [(y, Node e m ys), (z, singleton (Vector.fromList zs) v)])
     (Just (y,ys),[]  ) -> Node v      (Map.singleton y (Node e m ys))
+
+instance (Ord a, Arbitrary a, Monoid b, Arbitrary b) => Arbitrary (Trie a b) where
+  arbitrary = fmap fromAssocs (arbitrary :: (Arbitrary a, Arbitrary b) => Gen [([a], b)])
 
 singleton :: Vector a -> b -> Trie a b
 singleton xs v = Node v Map.empty xs
