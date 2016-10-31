@@ -1,13 +1,13 @@
 name:                hstrie
-version:             0.1.0.0
-synopsis:            Initial project template from stack
+version:             0.2.0.0
+synopsis:            Basic Patricia Trie
 description:         Please see README.md
 homepage:            https://github.com/oisdk/hstrie
 license:             MIT
 license-file:        LICENSE
-author:              Donnacha Oisin Kidney
-maintainer:          oisin.kidney@gmail.com
-copyright:           MIT
+author:              Donnacha Oisín Kidney
+maintainer:          mail@doisinkidney.com
+copyright:           2016 Donnacha Oisín Kidney
 category:            Data
 build-type:          Simple
 cabal-version:       >=1.10
@@ -17,13 +17,13 @@ library
   exposed-modules:     Data.Trie
                      , Data.TrieSet
                      , Data.TrieMap
-                     , Data.TrieBag
-                     , Data.TrieBin
-  build-depends:       base >= 4.7 && < 5
+  build-depends:       base >= 4.9 && < 5
                      , containers >= 0.5
                      , QuickCheck >= 2.8
+                     , semiring-num >= 0.1
+                     , vector >= 0.11
   default-language:    Haskell2010
-  ghc-options:         -Wall -Werror
+  ghc-options:         -Wall
 
 test-suite hstrie-test
   type:                exitcode-stdio-1.0

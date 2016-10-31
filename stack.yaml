@@ -1,9 +1,10 @@
-resolver: lts-6.10
+resolver: lts-7.6
 
 packages:
 - '.'
 
-extra-deps: []
+extra-deps:
+- semiring-num-0.1.0.1
 
 flags: {}
 

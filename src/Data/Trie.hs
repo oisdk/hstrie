@@ -1,111 +1,126 @@
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE LambdaCase        #-}
 
-module Data.Trie where
+module Data.Trie
+  ( Trie(..)
+  , lookup
+  , insert
+  , add
+  , fromList
+  , fromAssocs
+  , delete
+  , foldrWithKey
+  , foldMapWithKey
+  , assocs
+  ) where
 
-import           Control.Monad
+import           Prelude         hiding (lookup)
+
+import           Control.Monad   ((<=<))
+
 import           Data.Foldable
+
 import           Data.Map        (Map)
 import qualified Data.Map        as Map
-import           Data.Monoid
-import           Prelude         hiding (lookup)
-import           Test.QuickCheck
 
-data Trie a b = Trie
-  { endHere  :: b
-  , children :: Map a (Trie a b)
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+import           Data.Vector     (Vector)
+import qualified Data.Vector     as Vector
+
+import           Data.Monoid
+import           Data.Semiring
+
+data Trie a b
+  = Empty
+  | Node b (Map a (Trie a b)) (Vector a)
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 -- |
 -- prop> \xs ys zs -> (xs :: Trie Char String) <> (ys <> zs) === (xs <> ys) <> zs
 -- prop> \xs -> xs <> mempty === (xs :: Trie Char String)
 -- prop> \xs -> mempty <> xs === (xs :: Trie Char String)
-instance (Monoid b, Ord a) => Monoid (Trie a b) where
-  mempty = Trie mempty Map.empty
-  mappend (Trie a c) (Trie b d) = Trie (a <> b) (Map.unionWith (<>) c d)
+instance (Ord a, Monoid b) => Monoid (Trie a b) where
+  mempty = Empty
+  mappend Empty t = t
+  mappend t Empty = t
+  mappend (Node s m xp) (Node t n yp) = followSplit xp (toList yp) . curry $ \case
+    (Just (x,xs),y:ys) -> Node mempty   (Map.fromList [(x, Node s m xs), (y, Node t n (Vector.fromList ys))])
+    (Nothing    ,y:ys) -> Node  s       (Map.insertWith mappend y (Node t n (Vector.fromList ys)) m)
+    (Just (x,xs),[]  ) -> Node       t  (Map.insertWith mappend x (Node s m xs) n)
+    (Nothing    ,[]  ) -> Node (s <> t) (Map.unionWith mappend m n)
 
-lookup :: (Foldable f, Ord a, Monoid b) => f a -> Trie a b -> b
-lookup = foldr f endHere where
-  f e a (Trie _ m) = foldMap a (Map.lookup e m)
-  {-# INLINE f #-}
+lookup :: (Ord a, Monoid b) => [a] -> Trie a b -> b
+lookup _ Empty = mempty
+lookup xs (Node e m p) = flip foldMap (stripPrefix p xs) $ \case
+  [] -> e
+  y:ys -> foldMap (lookup ys) (Map.lookup y m)
 
 -- | Inserts a value into the Trie, mappending it with the previous, if
 -- a previous exists. The previous value is put to the right-hand-side
 -- of the mappend.
-insert :: (Foldable f, Ord a, Monoid b) => f a -> b -> Trie a b -> Trie a b
-insert xs v = foldr f b xs where
-  b (Trie p c) = Trie (v <> p) c
-  f e a (Trie n c) = Trie n (Map.alter (Just . a . fold) e c)
-  {-# INLINE f #-}
+insert :: (Ord a, Monoid b) => [a] -> b -> Trie a b -> Trie a b
+insert k v = go k where
+  go xs Empty = Node v Map.empty (Vector.fromList xs)
+  go xs (Node e m p) = followSplit p xs . curry $ \case
+    (Nothing    ,[]  ) -> Node (v <> e) m
+    (Nothing    ,z:zs) -> Node e      (Map.alter (Just . maybe (singleton (Vector.fromList zs) v) (go zs)) z m)
+    (Just (y,ys),z:zs) -> Node mempty (Map.fromList [(y, Node e m ys), (z, singleton (Vector.fromList zs) v)])
+    (Just (y,ys),[]  ) -> Node v      (Map.singleton y (Node e m ys))
 
-instance (Arbitrary a, Ord a, Arbitrary b, Monoid b)
-  => Arbitrary (Trie a b) where
-    arbitrary = fmap fromList' arbitrary where
-      fromList' :: (Ord a, Monoid b) => [([a],b)] -> Trie a b
-      fromList' = foldr (uncurry insert) mempty
+singleton :: Vector a -> b -> Trie a b
+singleton xs v = Node v Map.empty xs
 
-complete :: (Foldable f, Ord a, Monoid b) => f a -> Trie a b -> Trie a b
-complete = foldr f id where
-  f e a = foldMap a . Map.lookup e . children
+add :: (Ord a, Semiring b, Monoid b) => [a] -> Trie a b -> Trie a b
+add xs = insert xs one
 
-prefixedBy :: (Foldable f, Ord a, Monoid b)
-           => f a -> Trie a b -> Trie a b
-prefixedBy xs = fold . foldr f Just xs where
-  f e a =
-    fmap (Trie mempty . Map.singleton e) . a <=< Map.lookup e . children
+fromList :: (Ord a, Semiring b, Monoid b, Foldable f) => f [a] -> Trie a b
+fromList = foldr add Empty
 
-delete :: (Ord a, Foldable f, Monoid b)
-       => (b -> Bool) -> f a -> Trie a b -> Trie a b
-delete isEmpty xs = fold . foldr f flipEnd xs where
-  f e a (Trie n c) = nilIfEmpty isEmpty (Trie n (Map.alter (a=<<) e c))
+fromAssocs :: (Ord a, Monoid b, Foldable f) => f ([a], b) -> Trie a b
+fromAssocs = foldr (uncurry insert) Empty
 
-mapMaybe :: (Ord a, Monoid b) => (b -> Maybe b) -> Trie a b -> Trie a b
-mapMaybe p = fold . f where
-  f (Trie n c)
-    | Map.null t = flip Trie t <$> e
-    | otherwise = Just (Trie (fold e) t) where
-    t = Map.mapMaybe f c
-    e = p n
-
-filterWithKey :: (Ord a, Monoid b)
-              => (b -> Bool) -> ([a] -> Bool) -> Trie a b -> Trie a b
-filterWithKey isFull = (fold .) . f where
-  f p (Trie n c)
-    | not (isFull n) = Trie n <$> tn
-    | p [] = Just (Trie n t)
-    | otherwise = Trie mempty <$> tn
-    where
-      t = Map.mapMaybeWithKey (f . (p .) . (:)) c
-      tn = if Map.null t then Nothing else Just t
-
-nilIfEmpty :: (b -> Bool) -> Trie a b -> Maybe (Trie a b)
-nilIfEmpty isEmpty (Trie e c)
-  | isEmpty e && Map.null c = Nothing
-  | otherwise = Just (Trie e c)
-
-flipEnd :: Monoid b => Trie a b -> Maybe (Trie a b)
-flipEnd (Trie _ m)
-  | Map.null m = Nothing
-  | otherwise = Just (Trie mempty m)
+delete :: (Ord a, Monoid b) => (b -> Bool) -> [a] -> Trie a b -> Trie a b
+delete p = (fold .) . go where
+  compact = \case
+    Empty -> Nothing
+    Node e m xs | not (p e) -> case Map.toList m of
+      [] -> Nothing
+      [(y, Node f n ys)] -> Just (Node f n (Vector.concat [xs, Vector.singleton y, ys]))
+      _ -> Just (Node e m xs)
+    n -> Just n
+  go _ Empty = Nothing
+  go xs (Node e m xp) = followSplit xp xs . curry $ \case
+    (Nothing,[]  ) -> compact . Node mempty m
+    (Nothing,z:zs) -> compact . Node e (Map.alter (go zs =<<) z m)
+    (Just _ ,_   ) -> Just . Node e m
 
 foldrWithKey :: ([a] -> b -> c -> c) -> c -> Trie a b -> c
-foldrWithKey f b (Trie e c) = f [] e r where
+foldrWithKey _ b Empty = b
+foldrWithKey f b (Node e c ks) = g [] e r where
+  g = f . (vs++)
+  vs = Vector.toList ks
   r = Map.foldrWithKey ff b c
-  ff k = flip (foldrWithKey $ f . (k:))
+  ff k = flip (foldrWithKey (g . (k:)))
 
 foldMapWithKey :: Monoid m => ([a] -> b -> m) -> Trie a b -> m
-foldMapWithKey f (Trie e c) = s $ Map.foldMapWithKey ff c where
-  s = mappend (f [] e)
-  ff k = foldMapWithKey $ f . (k :)
+foldMapWithKey _ Empty = mempty
+foldMapWithKey f (Node e c ks) = s $ Map.foldMapWithKey ff c where
+  g = f . (vs++)
+  vs = Vector.toList ks
+  s = mappend (g [] e)
+  ff k = foldMapWithKey $ g . (k :)
+
+followSplit :: Eq a => Vector a -> [a] -> (Maybe (a, Vector a) -> [a] -> Vector a -> c) -> c
+followSplit xv yl c = Vector.ifoldr f b xv yl where
+  b ys = c Nothing ys xv
+  f _ x a (y:ys) | x == y = a ys
+  f i x _ ys = c (Just (x, Vector.drop (i+1) xv) ) ys (Vector.take i xv)
+
+stripPrefix :: Eq a => Vector a -> [a] -> Maybe [a]
+stripPrefix = foldr f Just where
+  f x a (y:ys) | x == y = a ys
+  f _ _ _ = Nothing
 
 assocs :: Foldable f => Trie a (f b) -> [([a], b)]
 assocs = traverse toList <=< foldrWithKey (\k v a -> (k,v):a) []
-
-showTrie :: (a -> Char) -> (b -> Char) -> Trie a b -> String
-showTrie a c = unlines . showTrie' where
-  showTrie' t = (ff <=< Map.assocs) (children t)
-  ff (k,t) = zipWith (++) pads $ case showTrie' t of
-    [] -> [[]]
-    r -> r
-    where pads = [a k, c $ endHere t] : repeat "  "
