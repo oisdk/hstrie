@@ -6,6 +6,9 @@ import qualified Data.TrieSet    as TrieSet
 import           Test.DocTest
 import           Test.QuickCheck
 
+import           Data.List       (stripPrefix)
+import           Data.Maybe      (mapMaybe)
+
 addIsMember :: TrieSet Bool String -> String -> Bool
 addIsMember t xs = TrieSet.member xs (TrieSet.add xs t)
 
@@ -34,6 +37,12 @@ insertDeleteId xs x =
     let ts = TrieSet.fromList xs :: TrieSet Bool String
     in (TrieSet.delete x . TrieSet.add x) ts === ts
 
+suffixesIsSame :: [String] -> Property
+suffixesIsSame xs = conjoin
+  [ TrieSet.suffixes x t === TrieSet.fromList (mapMaybe (stripPrefix x) xs)
+  | x <- xs
+  ] where t = TrieSet.fromList xs :: TrieSet Bool String
+
 main :: IO ()
 main = do
   quickCheck addIsMember
@@ -42,6 +51,7 @@ main = do
   quickCheck fromListIsMember
   quickCheck deletedIsntMember
   quickCheck insertDeleteId
+  quickCheck suffixesIsSame
   doctest [ "-isrc"
           , "src/Data/Trie.hs"
           , "src/Data/TrieSet.hs" ]

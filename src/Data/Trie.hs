@@ -16,6 +16,7 @@ module Data.Trie
   , assocs
   , TrieMap
   , TrieBin
+  , suffixes
   ) where
 
 import           Prelude         hiding (lookup)
@@ -58,6 +59,13 @@ lookup _ Empty = mempty
 lookup xs (Node e m p) = flip foldMap (stripPrefix p xs) $ \case
   [] -> e
   y:ys -> foldMap (lookup ys) (Map.lookup y m)
+
+suffixes :: (Ord a, Monoid b) => [a] -> Trie a b -> Trie a b
+suffixes _ Empty = Empty
+suffixes xs (Node e m p) = followSplit p xs . curry $ \case
+  (ps,[]) -> const $ Node e m (foldMap (uncurry Vector.cons) ps)
+  (Nothing,z:zs) -> const $ foldMap (suffixes zs) (Map.lookup z m)
+  _ -> const mempty
 
 -- | Inserts a value into the Trie, mappending it with the previous, if
 -- a previous exists. The previous value is put to the right-hand-side
