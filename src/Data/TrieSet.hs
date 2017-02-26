@@ -7,13 +7,13 @@
 
 module Data.TrieSet where
 
-import           Control.Arrow   (first)
+import           Control.Applicative
+import           Control.Arrow       (first)
 import           Control.Monad
 import           Data.Foldable
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import           Data.Map.Strict     (Map)
+import qualified Data.Map.Strict     as Map
 import           Data.Semigroup
-import           Control.Applicative
 
 data Trie a where
         Trie :: Bool -> Map a (Trie [a]) -> Trie [a]
@@ -78,7 +78,24 @@ instance Foldable Trie where
 
 instance Show a =>
          Show (Trie [a]) where
-    show = show . toList
+  showsPrec d a =
+    showParen (d >= 11)
+      $ showString "fromList "
+      . showsPrec 11 (toList a)
+
+instance (Read a, Ord a) =>
+         Read (Trie [a]) where
+    readsPrec p =
+        readParen (p > 10) $
+        \r -> do
+            ("fromList",s) <- lex r
+            (xs,t) <- reads s
+            return (fromList' xs, t)
+      where
+        fromList'
+            :: Ord a
+            => [[a]] -> Trie [a]
+        fromList' = fromList
 
 member
     :: (Foldable f, Ord a)

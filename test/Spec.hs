@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module Main (main) where
 
 import           Data.TrieSet    (Trie)
@@ -10,6 +11,8 @@ import           Test.QuickCheck
 
 import           Data.List       (stripPrefix)
 import           Data.Maybe      (mapMaybe)
+
+import           Text.Read
 
 
 instance (Arbitrary a, Ord a) => Arbitrary (Trie [a]) where
@@ -48,6 +51,9 @@ suffixesIsSame xs = conjoin
   | x <- xs
   ] where t = TrieSet.fromList xs :: Trie String
 
+readWorks :: Trie String -> Property
+readWorks xs = Right xs === (readEither . show) xs
+
 main :: IO ()
 main = do
   quickCheck addIsMember
@@ -57,5 +63,6 @@ main = do
   quickCheck deletedIsntMember
   quickCheck insertDeleteId
   quickCheck suffixesIsSame
+  quickCheck readWorks
   doctest [ "-isrc"
           , "src/" ]
