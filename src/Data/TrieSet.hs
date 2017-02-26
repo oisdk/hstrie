@@ -1,69 +1,130 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections      #-}
 
-module Data.TrieSet
-  ( TrieSet
-  , TrieBag
-  , member
-  , add
-  , fromList
-  , delete
-  , suffixes
-  ) where
+module Data.TrieSet where
 
-import           Prelude         hiding (filter)
+import           Control.Arrow   (first)
+import           Control.Monad
+import           Data.Foldable
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import           Data.Semigroup
+import           Control.Applicative
 
-import           Data.Monoid
-import           Data.Semigroup  (stimesMonoid)
-import           Data.Semiring
+data Trie a where
+        Trie :: Bool -> Map a (Trie [a]) -> Trie [a]
 
-import           Data.Trie       (Trie (..))
-import qualified Data.Trie       as Trie
+deriving instance Eq a => Eq (Trie [a])
+deriving instance Ord a => Ord (Trie [a])
 
-import           Test.QuickCheck (Arbitrary (..), Gen)
+children :: Trie [a] -> Map a (Trie [a])
+children (Trie _ c) = c
 
-data TrieSet b a where TrieSet :: Trie a (Add b) -> TrieSet b [a]
+endHere :: Trie [a] -> Bool
+endHere (Trie e _) = e
 
-type TrieBag = TrieSet Int
+-- | Very lazy
+-- >>> member "abc" (fromList ["abc", "def", ('c' : 'd' : undefined)])
+-- True
+-- >>> member "" (fromList ("" : "abc" : undefined))
+-- True
+-- >>> member [1] (fromList [[1], [1..]])
+-- True
+-- >>> member [1,2] (fromList [[1..]])
+-- False
+fromList
+    :: (Ord a, Foldable f)
+    => f [a] -> Trie [a]
+fromList =
+    uncurry (flip Trie . fmap fromList . Map.fromListWith (++)) .
+    foldr f ([], False)
+  where
+    f []     = (, True) . fst
+    f (x:xs) = first ((x, [xs]) :)
 
-deriving instance (Eq a, Eq b) => Eq (TrieSet b [a])
-deriving instance (Ord a, Ord b) => Ord (TrieSet b [a])
+instance Ord a =>
+         Semigroup (Trie [a]) where
+    Trie v c <> Trie t d = Trie (v || t) (Map.unionWith mappend c d)
 
-suffixes :: (Ord a, Semiring b) => [a] -> TrieSet b [a] -> TrieSet b [a]
-suffixes xs (TrieSet t) = TrieSet (Trie.suffixes xs t)
+instance Ord a =>
+         Monoid (Trie [a]) where
+    mempty = Trie False mempty
+    mappend = (<>)
 
-instance (Ord a, Semiring b) => Monoid (TrieSet b [a]) where
-  mempty = TrieSet Empty
-  mappend (TrieSet x) (TrieSet y) = TrieSet (x <> y)
+insert
+    :: (Foldable f, Ord a)
+    => f a -> Trie [a] -> Trie [a]
+insert = foldr f b
+  where
+    b :: Trie [b] -> Trie [b]
+    b (Trie _ c) = Trie True c
+    f
+        :: Ord a
+        => a -> (Trie [a] -> Trie [a]) -> Trie [a] -> Trie [a]
+    f e a (Trie n c) = Trie n (Map.alter (Just . a . fold) e c)
 
-instance Enum b => Foldable (TrieSet b) where
-  foldr f b (TrieSet t) =
-    Trie.foldrWithKey (\k (Add e) -> rep (fromEnum e) (f k)) b t
-  foldMap f (TrieSet t) =
-    Trie.foldMapWithKey (\k (Add e) -> stimesMonoid (fromEnum e) (f k)) t
-  length (TrieSet t) = (getAdd . foldMap (fmap fromEnum)) t
-  null (TrieSet Empty) = True
-  null _ = False
+instance Foldable Trie where
+    foldr f b (Trie e c) =
+        if e
+            then f [] r
+            else r
+      where
+        r = Map.foldrWithKey (flip . g . (:)) b c
+        g k = foldr (f . k)
 
-member :: (Ord a, Semiring b) => [a] -> TrieSet b [a] -> b
-member xs (TrieSet t) = getAdd (Trie.lookup xs t)
+instance Show a =>
+         Show (Trie [a]) where
+    show = show . toList
 
-delete :: (Ord a, Semiring b, Enum b) => [a] -> TrieSet b [a] -> TrieSet b [a]
-delete xs (TrieSet t) = TrieSet (Trie.delete ((0<).fromEnum.getAdd) xs t)
+member
+    :: (Foldable f, Ord a)
+    => f a -> Trie [a] -> Bool
+member = foldr f endHere
+  where
+    f e a = maybe False a . Map.lookup e . children
 
-add :: (Ord a, Semiring b) => [a] -> TrieSet b [a] -> TrieSet b [a]
-add xs (TrieSet t) = TrieSet (Trie.add xs t)
+delete :: (Ord a, Foldable f)
+       => f a -> Trie [a] -> Trie [a]
+delete =
+    foldr
+        f
+        (\(Trie _ m) ->
+              Trie False m)
+  where
+    f
+        :: Ord a
+        => a -> (Trie [a] -> Trie [a]) -> Trie [a] -> Trie [a]
+    f e a (Trie n c) = Trie n (Map.alter ((nilIfEmpty . a) =<<) e c)
+    nilIfEmpty (Trie False m)
+      | Map.null m = Nothing
+    nilIfEmpty t = Just t
 
-instance (Show a, Enum b) => Show (TrieSet b [a]) where show = show . foldr (:) []
+suffixes :: (Foldable f, Ord a) => f a -> Trie [a] -> Trie [a]
+suffixes = foldr f id
+  where
+    f e a = foldMap a . Map.lookup e . children
 
-fromList :: (Foldable f, Ord a, Semiring b) => f [a] -> TrieSet b [a]
-fromList = foldr add mempty
+prefixedBy :: (Foldable f, Ord a)
+           => f a -> Trie [a] -> Trie [a]
+prefixedBy xs = fold . foldr f Just xs
+  where
+    f e a = fmap (Trie False . Map.singleton e) . a <=< Map.lookup e . children
 
-instance (Arbitrary a, Semiring b, Ord a) => Arbitrary (TrieSet b [a]) where
-  arbitrary = fmap fromList (arbitrary :: Arbitrary a => Gen [a])
-
-rep :: Int -> (a -> a) -> a -> a
-rep m f x = go m where
-  go 0 = x
-  go n = f (go (n-1))
+-- | Match longest string. Useful for parsers.
+match
+    :: (Monad f, Alternative f, Ord a)
+    => ([[a]] -> f [a] -> f [a]) -> Trie [a] -> f a -> f [a]
+match label t action = go t
+  where
+    go tr@(Trie e c) =
+        label
+            (toList tr)
+            ((if e
+                  then (<|> pure [])
+                  else id)
+                 (action >>= r c))
+    r m c = maybe empty (fmap (c :) . go) (Map.lookup c m)
