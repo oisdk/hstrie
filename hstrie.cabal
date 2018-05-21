@@ -1,43 +1,116 @@
-name:                hstrie
-version:             0.2.0.0
-synopsis:            Basic Patricia Trie
-description:         Please see README.md
-homepage:            https://github.com/oisdk/hstrie
-license:             MIT
-license-file:        LICENSE
-author:              Donnacha Oisín Kidney
-maintainer:          mail@doisinkidney.com
-copyright:           2016 Donnacha Oisín Kidney
-category:            Data
-build-type:          Simple
-cabal-version:       >=1.10
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7ac00e1757eb87ebed0e6264291c84e17b300c2bbf36bc3412b4f8c463896c44
 
-library
-  hs-source-dirs:      src
-  exposed-modules:     Data.Trie
-                     , Data.TrieSet
-  build-depends:       base >= 4.9 && < 5
-                     , containers >= 0.5
-                     , QuickCheck >= 2.8
-                     , semiring-num >= 0.1
-                     , vector >= 0.11
-                     , mtl >= 2.2
-  default-language:    Haskell2010
-  ghc-options:         -Wall
-
-test-suite hstrie-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  build-depends:       base
-                     , hstrie
-                     , QuickCheck >= 2.8
-                     , doctest
-                     , containers >= 0.5
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  default-language:    Haskell2010
-
+name:           hstrie
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/oisdk/hstrie#readme>
+homepage:       https://github.com/oisdk/hstrie#readme
+bug-reports:    https://github.com/oisdk/hstrie/issues
+author:         Donnacha Oisín Kidney
+maintainer:     mail@doisinkidney.com
+copyright:      2018 Donnacha Oisín Kidney
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+extra-source-files:
+    ChangeLog.md
+    README.md
 
 source-repository head
-  type:     git
+  type: git
   location: https://github.com/oisdk/hstrie
+
+library
+  exposed-modules:
+      Data.Coerce.Utilities
+      Data.Trie.Internal.Ap
+      Data.Trie.List.Set
+      Data.Trie.Vector.Set
+  other-modules:
+      Paths_hstrie
+  hs-source-dirs:
+      src
+  default-extensions: TypeOperators StandaloneDeriving MultiParamTypeClasses FlexibleContexts FlexibleInstances GADTs TypeFamilies TypeFamilyDependencies FunctionalDependencies RankNTypes UnicodeSyntax DeriveFoldable DeriveFunctor DeriveTraversable ConstraintKinds ScopedTypeVariables KindSignatures DataKinds BangPatterns
+  ghc-options: -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , lens
+    , profunctors
+    , these
+    , vector
+  if impl(ghc >= 8.0)
+    ghc-options: -fwarn-redundant-constraints -Wcompat
+  default-language: Haskell2010
+
+test-suite hstrie-doctests
+  type: exitcode-stdio-1.0
+  main-is: doctests.hs
+  other-modules:
+      Paths_hstrie
+  hs-source-dirs:
+      doctest
+  default-extensions: TypeOperators StandaloneDeriving MultiParamTypeClasses FlexibleContexts FlexibleInstances GADTs TypeFamilies TypeFamilyDependencies FunctionalDependencies RankNTypes UnicodeSyntax DeriveFoldable DeriveFunctor DeriveTraversable ConstraintKinds ScopedTypeVariables KindSignatures DataKinds BangPatterns
+  ghc-options: -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -threaded
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , containers
+    , doctest
+    , hstrie
+    , lens
+    , profunctors
+    , these
+    , vector
+  if impl(ghc >= 8.0)
+    ghc-options: -fwarn-redundant-constraints -Wcompat
+  default-language: Haskell2010
+
+test-suite hstrie-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_hstrie
+  hs-source-dirs:
+      test
+  default-extensions: TypeOperators StandaloneDeriving MultiParamTypeClasses FlexibleContexts FlexibleInstances GADTs TypeFamilies TypeFamilyDependencies FunctionalDependencies RankNTypes UnicodeSyntax DeriveFoldable DeriveFunctor DeriveTraversable ConstraintKinds ScopedTypeVariables KindSignatures DataKinds BangPatterns
+  ghc-options: -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , hedgehog
+    , hstrie
+    , lens
+    , profunctors
+    , these
+    , vector
+  if impl(ghc >= 8.0)
+    ghc-options: -fwarn-redundant-constraints -Wcompat
+  default-language: Haskell2010
+
+benchmark bench
+  type: exitcode-stdio-1.0
+  main-is: bench.hs
+  other-modules:
+      Paths_hstrie
+  hs-source-dirs:
+      bench
+  default-extensions: TypeOperators StandaloneDeriving MultiParamTypeClasses FlexibleContexts FlexibleInstances GADTs TypeFamilies TypeFamilyDependencies FunctionalDependencies RankNTypes UnicodeSyntax DeriveFoldable DeriveFunctor DeriveTraversable ConstraintKinds ScopedTypeVariables KindSignatures DataKinds BangPatterns
+  ghc-options: -Wall -fwarn-incomplete-record-updates -fwarn-incomplete-uni-patterns -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , criterion
+    , hstrie
+    , lens
+    , profunctors
+    , random
+    , these
+    , vector
+  if impl(ghc >= 8.0)
+    ghc-options: -fwarn-redundant-constraints -Wcompat
+  default-language: Haskell2010
