@@ -20,6 +20,8 @@ import qualified GHC.Exts         as OverloadedLists
 import           Data.Trie.Internal.Ap
 import           Data.Coerce.Utilities
 
+import           GHC.Base            (augment,build,oneShot)
+
 instance (Ord a, [a] ~ b) =>
          Semigroup (Trie b) where
     Trie x xs <> Trie y ys = Trie (x || y) (Map.unionWith (<>) xs ys)
@@ -48,28 +50,36 @@ children :: Lens (Trie [a]) (Trie [b]) (Map a (Trie [a])) (Map b (Trie [b]))
 children f (Trie e m) = fmap (Trie e) (f m)
 {-# INLINE children #-}
 
+augCons :: a -> [a] -> [a]
+augCons x = augment (\c -> c x)
+{-# INLINE augCons #-}
+
+buildNil :: [a]
+buildNil = build (\_ n -> n)
+{-# INLINE buildNil #-}
+
 instance Foldable Trie where
-    foldr f b (Trie e c)
-      | e = f [] r
+    foldr f b (Trie e m)
+      | e = f buildNil r
       | otherwise = r
       where
-        r = Map.foldrWithKey (\x tr xs -> foldr (f . (:) x) xs tr) b c
+        r = Map.foldrWithKey (\x tr xs -> foldr (f . augCons x) xs tr) b m
     foldr' f !b (Trie e c)
-      | e = f [] r
+      | e = f buildNil r
       | otherwise = r
       where
-        !r = Map.foldrWithKey' (\x tr !xs -> foldr' (f . (:) x) xs tr) b c
+        !r = Map.foldrWithKey' (\x tr !xs -> foldr' (f . augCons x) xs tr) b c
     foldl f b (Trie e c) =
-        Map.foldlWithKey (\xs x -> foldl (\a -> f a . (:) x) xs) (bool b (f b []) e) c
+        Map.foldlWithKey (\xs x -> foldl (\a -> f a . augCons x) xs) (bool b (f b buildNil) e) c
     foldl' f !b (Trie e c) =
-        Map.foldlWithKey' (\xs x -> foldl' (\ !a -> f a . (:) x) xs) r c
+        Map.foldlWithKey' (\xs x -> foldl' (\ !a -> f a . augCons x) xs) r c
       where
-        !r = bool b (f b []) e
+        !r = bool b (f b buildNil) e
     foldMap f (Trie e c)
-      | e = f [] `mappend` r
+      | e = f buildNil `mappend` r
       | otherwise = r
       where
-        r = Map.foldMapWithKey (\x -> foldMap (f . (:) x)) c
+        r = Map.foldMapWithKey (\x -> foldMap (f . augCons x)) c
     length = go 0
       where
         go :: Int -> Trie a -> Int
@@ -79,10 +89,10 @@ instance Foldable Trie where
 instance (Ord b, c1 ~ [b], c2 ~ [b], a1 ~ a2) =>
          Each (Trie a1) (Trie c1) a2 c2 where
     each f (Trie e c)
-      | e = liftA2 insert (f []) r
+      | e = liftA2 insert (f buildNil) r
       | otherwise = r
       where
-        r = getAp (Map.foldMapWithKey (\x -> Ap #. each (f . (:) x)) c)
+        r = getAp (Map.foldMapWithKey (\x -> Ap #. each (f . augCons x)) c)
     {-# INLINE each #-}
 
 instance (Show a, b ~ [a]) =>
@@ -119,7 +129,7 @@ nonEmpty tr@(Trie e m)
   | otherwise = Just tr
 
 member :: (Ord a, Foldable f) => f a -> Trie [a] -> Bool
-member = foldr (\x -> anyOf (children . ix x)) (view endsHere)
+member = foldr (\x xs -> anyOf (children . ix x) (oneShot xs)) (view endsHere)
 
 type instance Index (Trie a) = a
 type instance IxValue (Trie a) = ()
