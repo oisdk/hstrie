@@ -54,7 +54,15 @@ member = foldr f b
   where
     b :: Trie a -> Bool
     b (Trie xs e _) = Vector.null xs && e
-    f :: Ord a => a -> (Trie [a] -> Bool) -> Trie [a] -> Bool
-    f x xs (Trie ys e m)
-      | Vector.null ys = maybe False xs (Map.lookup x m)
-      | otherwise = x == Vector.head ys && xs (Trie (Vector.tail ys) e m)
+    f
+        :: Ord a
+        => a -> (Trie [a] -> Bool) -> Trie [a] -> Bool
+    f x xs (Trie ys e m) =
+        case uncons ys of
+            Nothing -> any xs (Map.lookup x m)
+            Just (z,zs) -> x == z && xs (Trie zs e m)
+
+uncons :: Vector a -> Maybe (a, Vector a)
+uncons xs
+  | Vector.null xs = Nothing
+  | otherwise = Just (Vector.unsafeHead xs, Vector.unsafeTail xs)
