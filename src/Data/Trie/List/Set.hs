@@ -2,6 +2,8 @@
 
 module Data.Trie.List.Set where
 
+import           Prelude              hiding      (filter)
+
 import qualified Data.Map.Strict      as Map
 import           Data.Map.Strict      (Map)
 
@@ -201,3 +203,8 @@ prefixed :: (Ord a, Foldable f) => f a -> Lens' (Trie [a]) (Trie [a])
 prefixed =
     flip $
     foldr (\x a -> children (at x (fmap nonEmpty . a . fold)))
+
+filter :: ([a] -> Bool) -> Trie [a] -> Trie [a]
+filter p (Trie e m) = Trie (e && p []) (Map.mapMaybeWithKey f m)
+  where
+    f k v = nonEmpty (filter (p . (:) k) v)

@@ -8,6 +8,8 @@ import qualified Data.Map.Strict as Map
 import           Data.Vector     (Vector)
 import qualified Data.Vector     as Vector
 
+import           Control.Lens    hiding (children,uncons)
+
 import           Data.Semigroup
 import           Data.Foldable
 
@@ -30,35 +32,45 @@ instance (NFData a, b ~ [a]) => NFData (Trie b) where
 instance (Show a, b ~ [a]) => Show (Trie b) where
     showsPrec n = showsPrec n . toList
 
+prefix :: Lens' (Trie [a]) (Vector a)
+prefix f (Trie xs e m) = fmap (\ys -> Trie ys e m) (f xs)
+{-# INLINE prefix #-}
+
+endsHere :: Lens' (Trie a) Bool
+endsHere f (Trie xs e m) = fmap (\e' -> Trie xs e' m) (f e)
+{-# INLINE endsHere #-}
+
+children :: Lens' (Trie [a]) (Map a (Trie [a]))
+children f (Trie xs e m) = fmap (Trie xs e) (f m)
+{-# INLINE children #-}
+
 instance (Ord a, b ~ [a]) =>
          Semigroup (Trie b) where
-    Trie xs xe xm <> Trie ys ye ym =
-        Vector.ifoldr
-            f
-            (Trie xs (xe || ye) (Map.unionWith (<>) xm ym))
-            (align xs ys)
+    (Trie xs xe xm) <> (Trie ys ye ym) = go 0
       where
-        f !i (These x y) a = case compare x y of
-          EQ -> a
-          LT ->
-              Trie
-                  (Vector.take i xs)
-                  False
-                  (Map.fromDistinctAscList
-                       [ (x, Trie (Vector.drop (i + 1) xs) xe xm)
-                       , (y, Trie (Vector.drop (i + 1) ys) ye ym)])
-          GT ->
-              Trie
-                  (Vector.take i xs)
-                  False
-                  (Map.fromDistinctAscList
-                       [ (y, Trie (Vector.drop (i + 1) ys) ye ym)
-                       , (x, Trie (Vector.drop (i + 1) xs) xe xm)])
-        f !i (This x) _ =
-            Trie ys ye (Map.insertWith (<>) x (Trie (Vector.drop (i + 1) xs) xe xm) ym)
-        f !i (That y) _ =
-            Trie xs xe (Map.insertWith (<>) y (Trie (Vector.drop (i + 1) ys) ye ym) xm)
-        {-# INLINE f #-}
+        go !i =
+            case (xs Vector.!? i, ys Vector.!? i) of
+                (Just x,Just y) ->
+                    case compare x y of
+                        EQ -> go (i + 1)
+                        LT ->
+                            Trie (Vector.take i xs) False (Map.fromDistinctAscList
+                                     [ (x, Trie (Vector.drop (i + 1) xs) xe xm)
+                                     , (y, Trie (Vector.drop (i + 1) ys) ye ym)])
+                        GT ->
+                            Trie (Vector.take i xs) False (Map.fromDistinctAscList
+                                     [ (y, Trie (Vector.drop (i + 1) ys) ye ym)
+                                     , (x, Trie (Vector.drop (i + 1) xs) xe xm)])
+                (Just x,Nothing) ->
+                    Trie ys ye (Map.insertWith (<>) x
+                             (Trie (Vector.drop (i + 1) xs) xe xm)
+                             ym)
+                (Nothing,Just y) ->
+                    Trie xs xe (Map.insertWith (<>) y
+                             (Trie (Vector.drop (i + 1) ys) ye ym)
+                             xm)
+                (Nothing,Nothing) ->
+                    Trie xs (xe || ye) (Map.unionWith (<>) xm ym)
     {-# INLINE (<>) #-}
 
 instance (Ord a, b ~ [a]) =>
@@ -107,9 +119,8 @@ uncons xs
 {-# INLINE uncons #-}
 
 delete :: (Ord a) => Vector a -> Trie [a] -> Trie [a]
-delete xs (Trie ys e m) = Vector.ifoldr f b (align xs ys)
+delete xs (Trie ys e m) = Vector.ifoldr f (Trie ys False m) (align xs ys)
   where
-    b = Trie ys False m
     f i (This x) _ =
         Trie ys e (Map.alter (nonEmpty . delete (Vector.drop (i+1) xs) =<<) x m)
     f _ (That _) _ = Trie ys e m
@@ -123,7 +134,7 @@ nonEmpty tr@(Trie xs e m)
       case Map.size m of
           0 -> Nothing
           1 ->
-              case Map.elemAt 0 m of
+              case Map.findMin m of
                   (k,Trie ys ye ym) ->
                       Just (Trie (xs <> Vector.singleton k <> ys) ye ym)
           _ -> Just tr
