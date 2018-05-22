@@ -7,6 +7,7 @@ import           Hedgehog
 import qualified Hedgehog.Gen         as Gen
 import qualified Hedgehog.Range       as Range
 
+import           Control.Monad
 import           Data.Foldable
 import qualified Data.Map.Strict      as Map
 import qualified Data.Set             as Set
@@ -59,6 +60,22 @@ memberProp Mapping{..} =
        y <- forAll (Gen.filter (`Set.notMember` inset) gen)
        assert (not (y `member` trie))
 
+foldableProp :: (Show a, Foldable f, Show (f a), Ord a) => Gen (f a) -> Property
+foldableProp gen = property $ do
+    xs <- forAll gen
+    let ys = toList xs
+    length ys === length xs
+    foldr (:) [] xs === ys
+    foldl (flip (:)) [] xs === reverse ys
+    null xs === null ys
+    for_ ys $ \y -> assert (y `elem` xs)
+    foldMap (:[]) xs === ys
+    foldr' (:) [] xs === ys
+    foldl' (flip (:)) [] xs === reverse ys
+    unless (null ys) $ do
+        minimum xs === minimum ys
+        maximum xs === maximum ys
+
 deleteProp :: (Ord a, Show a, Eq b, Show b) => Mapping a b -> Property
 deleteProp Mapping{..} = property $ do
     xs <- forAll $ Gen.list (Range.linear 0 100) gen
@@ -75,11 +92,17 @@ prop_memberList = memberProp listTrie
 prop_deleteList :: Property
 prop_deleteList = deleteProp listTrie
 
+prop_foldableList :: Property
+prop_foldableList = foldableProp (gen listTrie)
+
 prop_memberVector :: Property
 prop_memberVector = memberProp vectorTrie
 
 prop_deleteVector :: Property
 prop_deleteVector = deleteProp vectorTrie
+
+prop_foldableVector :: Property
+prop_foldableVector = foldableProp (gen vectorTrie)
 
 main :: IO Bool
 main = checkParallel $$(discover)

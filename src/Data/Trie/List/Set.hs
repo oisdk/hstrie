@@ -2,25 +2,29 @@
 
 module Data.Trie.List.Set where
 
-import qualified Data.Map.Strict  as Map
-import           Data.Map.Strict     (Map)
+import qualified Data.Map.Strict      as Map
+import           Data.Map.Strict      (Map)
 
-import           Data.Bool           (bool)
-import           Data.Maybe          (isJust)
-import           Data.Foldable       (Foldable(..))
-import           Data.Semigroup      (Semigroup(..),stimesIdempotent)
+import           Data.Bool            (bool)
+import           Data.Maybe           (isJust)
+import           Data.Foldable        (Foldable(..))
+import           Data.Semigroup       (Semigroup(..),stimesIdempotent)
+import           Data.Functor.Classes (Eq1(..), Ord1(..))
 
-import           Control.Applicative (Applicative(..),liftA2)
+import           Control.Applicative  (Applicative(..),liftA2)
+import           Data.List            (unfoldr)
 
-import           Control.Lens hiding (children)
+import           Control.Lens         hiding (children)
 
-import           GHC.Exts            (IsList(Item))
-import qualified GHC.Exts         as OverloadedLists
+import           GHC.Exts             (IsList(Item))
+import qualified GHC.Exts             as OverloadedLists
 
 import           Data.Trie.Internal.Ap
 import           Data.Coerce.Utilities
 
-import           GHC.Base            (augment,build,oneShot)
+import           GHC.Base             (augment,build,oneShot)
+
+
 
 instance (Ord a, [a] ~ b) =>
          Semigroup (Trie b) where
@@ -41,6 +45,23 @@ data Trie a where
 
 deriving instance (Eq a, b ~ [a]) => Eq (Trie b)
 deriving instance (Ord a, b ~ [a]) => Ord (Trie b)
+
+instance Eq1 Trie where
+    liftEq eq (Trie xe xm) (Trie ye ym) =
+        xe == ye &&
+        (not xe || eq [] []) &&
+        Map.size xm == Map.size ym && liftEq f (Map.toList xm) (Map.toList ym)
+      where
+        f (x,xt) (y,yt) =
+            liftEq (\xs ys -> eq (x : xs) (y : ys)) xt yt
+
+instance Ord1 Trie where
+    liftCompare cmp (Trie xe xm) (Trie ye ym) =
+        compare ye xe <>
+        bool (cmp [] []) EQ xe <> liftCompare f (Map.toList xm) (Map.toList ym)
+      where
+        f (x,xt) (y,yt) =
+            liftCompare (\xs ys -> cmp (x : xs) (y : ys)) xt yt
 
 endsHere :: Lens (Trie a) (Trie a) Bool Bool
 endsHere f (Trie e m) = fmap (flip Trie m) (f e)
@@ -85,6 +106,16 @@ instance Foldable Trie where
         go :: Int -> Trie a -> Int
         go !n (Trie False m) = Map.foldl' go n m
         go !n (Trie True m) = Map.foldl' go (n + 1) m
+    minimum tr@(Trie _ _) = unfoldr f tr
+      where
+        f :: Trie [a] -> Maybe (a, Trie [a])
+        f (Trie True _) = Nothing
+        f (Trie False m) = Just (Map.findMin m)
+    maximum tr@(Trie _ _) = unfoldr f tr
+      where
+        f :: Trie [a] -> Maybe (a, Trie [a])
+        f (Trie False m) = Just (Map.findMax m)
+        f (Trie True  m) = Map.lookupMax m
 
 instance (Ord b, c1 ~ [b], c2 ~ [b], a1 ~ a2) =>
          Each (Trie a1) (Trie c1) a2 c2 where
@@ -165,3 +196,8 @@ fromList
     :: (Ord a, Foldable f, Foldable g)
     => f (g a) -> Trie [a]
 fromList = foldl' (flip insert) mempty
+
+prefixed :: (Ord a, Foldable f) => f a -> Lens' (Trie [a]) (Trie [a])
+prefixed =
+    flip $
+    foldr (\x a -> children (at x (fmap nonEmpty . a . fold)))

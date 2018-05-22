@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7ac00e1757eb87ebed0e6264291c84e17b300c2bbf36bc3412b4f8c463896c44
+-- hash: be7cf2c941ecc40f0af9f1c5a0f09fe812b8817d1a65d2b8a953db3d64af1ebf
 
 name:           hstrie
 version:        0.1.0.0
@@ -39,6 +39,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , deepseq
     , lens
     , profunctors
     , these
@@ -60,6 +61,7 @@ test-suite hstrie-doctests
       QuickCheck
     , base >=4.7 && <5
     , containers
+    , deepseq
     , doctest
     , hstrie
     , lens
@@ -82,6 +84,7 @@ test-suite hstrie-test
   build-depends:
       base >=4.7 && <5
     , containers
+    , deepseq
     , hedgehog
     , hstrie
     , lens
@@ -105,6 +108,7 @@ benchmark bench
       base >=4.7 && <5
     , containers
     , criterion
+    , deepseq
     , hstrie
     , lens
     , profunctors

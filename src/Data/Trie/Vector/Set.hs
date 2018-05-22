@@ -16,11 +16,16 @@ import           Data.Align
 
 import           GHC.Base (augment)
 
+import           Control.DeepSeq (NFData(rnf))
+
 data Trie a where
-        Trie :: Vector a -> Bool -> Map a (Trie [a]) -> Trie [a]
+        Trie :: {-# UNPACK #-} !(Vector a) -> !Bool -> !(Map a (Trie [a])) -> Trie [a]
 
 deriving instance (Eq a, b ~ [a]) => Eq (Trie b)
 deriving instance (Ord a, b ~ [a]) => Ord (Trie b)
+
+instance (NFData a, b ~ [a]) => NFData (Trie b) where
+    rnf (Trie xs _ m) = rnf xs `seq` rnf m
 
 instance (Show a, b ~ [a]) => Show (Trie b) where
     showsPrec n = showsPrec n . toList
@@ -33,24 +38,35 @@ instance (Ord a, b ~ [a]) =>
             (Trie xs (xe || ye) (Map.unionWith (<>) xm ym))
             (align xs ys)
       where
-        f i (These x y) a
-          | x == y = a
-          | otherwise =
+        f !i (These x y) a = case compare x y of
+          EQ -> a
+          LT ->
               Trie
                   (Vector.take i xs)
                   False
-                  (Map.fromList
+                  (Map.fromDistinctAscList
                        [ (x, Trie (Vector.drop (i + 1) xs) xe xm)
                        , (y, Trie (Vector.drop (i + 1) ys) ye ym)])
-        f i (This x) _ =
+          GT ->
+              Trie
+                  (Vector.take i xs)
+                  False
+                  (Map.fromDistinctAscList
+                       [ (y, Trie (Vector.drop (i + 1) ys) ye ym)
+                       , (x, Trie (Vector.drop (i + 1) xs) xe xm)])
+        f !i (This x) _ =
             Trie ys ye (Map.insertWith (<>) x (Trie (Vector.drop (i + 1) xs) xe xm) ym)
-        f i (That y) _ =
+        f !i (That y) _ =
             Trie xs xe (Map.insertWith (<>) y (Trie (Vector.drop (i + 1) ys) ye ym) xm)
+        {-# INLINE f #-}
+    {-# INLINE (<>) #-}
 
 instance (Ord a, b ~ [a]) =>
          Monoid (Trie b) where
     mappend = (<>)
+    {-# INLINE mappend #-}
     mempty = Trie Vector.empty False Map.empty
+    {-# INLINE mempty #-}
 
 instance Foldable Trie where
     foldMap f (Trie v e m)
@@ -64,21 +80,21 @@ instance Foldable Trie where
 
 singleton :: Vector a -> Trie [a]
 singleton xs = Trie xs True Map.empty
+{-# INLINE singleton #-}
 
 -- |
 -- >>> foldr (insert . Vector.fromList) mempty ["ab", "abc", "def"]
 -- ["ab","abc","def"]
 insert :: Ord a => Vector a -> Trie [a] -> Trie [a]
 insert = (<>) . singleton
+{-# INLINE insert #-}
 
-member :: (Ord a, Foldable f) => f a -> Trie [a] -> Bool
+member :: forall a f. (Ord a, Foldable f) => f a -> Trie [a] -> Bool
 member = foldr f b
   where
-    b :: Trie a -> Bool
+    b :: Trie [a] -> Bool
     b (Trie xs e _) = Vector.null xs && e
-    f
-        :: Ord a
-        => a -> (Trie [a] -> Bool) -> Trie [a] -> Bool
+    f :: a -> (Trie [a] -> Bool) -> Trie [a] -> Bool
     f x xs (Trie ys e m) =
         case uncons ys of
             Nothing -> any xs (Map.lookup x m)
@@ -88,6 +104,7 @@ uncons :: Vector a -> Maybe (a, Vector a)
 uncons xs
   | Vector.null xs = Nothing
   | otherwise = Just (Vector.unsafeHead xs, Vector.unsafeTail xs)
+{-# INLINE uncons #-}
 
 delete :: (Ord a) => Vector a -> Trie [a] -> Trie [a]
 delete xs (Trie ys e m) = Vector.ifoldr f b (align xs ys)
@@ -111,3 +128,7 @@ nonEmpty tr@(Trie xs e m)
                       Just (Trie (xs <> Vector.singleton k <> ys) ye ym)
           _ -> Just tr
   | otherwise = Just tr
+
+fromList :: (Foldable f, Ord a) => f (Vector a) -> Trie [a]
+fromList = foldl' (flip insert) mempty
+{-# INLINE fromList #-}

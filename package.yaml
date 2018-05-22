@@ -19,6 +19,7 @@ dependencies:
 - these
 - profunctors
 - vector
+- deepseq
 
 default-extensions:
 - TypeOperators
