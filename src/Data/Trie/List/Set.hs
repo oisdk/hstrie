@@ -1,32 +1,38 @@
 {-# LANGUAGE UndecidableInstances  #-}
 
+{-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE TypeFamilies          #-}
+
 module Data.Trie.List.Set where
 
-import           Prelude              hiding      (filter)
+import           Prelude               hiding (filter)
 
-import qualified Data.Map.Strict      as Map
-import           Data.Map.Strict      (Map)
+import           Data.Map.Strict       (Map)
+import qualified Data.Map.Strict       as Map
 
-import           Data.Bool            (bool)
-import           Data.Maybe           (isJust)
-import           Data.Foldable        (Foldable(..))
-import           Data.Semigroup       (Semigroup(..),stimesIdempotent)
-import           Data.Functor.Classes (Eq1(..), Ord1(..))
+import           Data.Bool             (bool)
+import           Data.Foldable         (Foldable (..))
+import           Data.Functor.Classes  (Eq1 (..), Ord1 (..))
+import           Data.Maybe            (isJust)
+import           Data.Semigroup        (Semigroup (..), stimesIdempotent)
 
-import           Control.Applicative  (Applicative(..),liftA2)
-import           Data.List            (unfoldr)
+import           Control.Applicative   (Applicative (..), liftA2)
+import           Data.List             (unfoldr)
 
-import           Control.Lens         hiding (children)
+import           Control.Lens          hiding (children)
 
-import           GHC.Exts             (IsList(Item))
-import qualified GHC.Exts             as OverloadedLists
+import           GHC.Exts              (IsList (Item))
+import qualified GHC.Exts              as OverloadedLists
 
-import           Data.Trie.Internal.Ap
 import           Data.Coerce.Utilities
+import           Data.Trie.Internal.Ap
 
-import           GHC.Base             (augment,build,oneShot)
-
-
+import           GHC.Base              (augment, build, oneShot)
 
 instance (Ord a, [a] ~ b) =>
          Semigroup (Trie b) where
@@ -107,11 +113,11 @@ instance Foldable Trie where
       where
         go :: Int -> Trie a -> Int
         go !n (Trie False m) = Map.foldl' go n m
-        go !n (Trie True m) = Map.foldl' go (n + 1) m
+        go !n (Trie True m)  = Map.foldl' go (n + 1) m
     minimum tr@(Trie _ _) = unfoldr f tr
       where
         f :: Trie [a] -> Maybe (a, Trie [a])
-        f (Trie True _) = Nothing
+        f (Trie True _)  = Nothing
         f (Trie False m) = Just (Map.findMin m)
     maximum tr@(Trie _ _) = unfoldr f tr
       where

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: be7cf2c941ecc40f0af9f1c5a0f09fe812b8817d1a65d2b8a953db3d64af1ebf
+-- hash: f32e3a30a8b3e05f3dd146f392db7ca22ca47af46987849f6b35e2d9ca64b348
 
 name:           hstrie
 version:        0.1.0.0
@@ -28,6 +28,7 @@ library
   exposed-modules:
       Data.Coerce.Utilities
       Data.Trie.Internal.Ap
+      Data.Trie.List.Map
       Data.Trie.List.Set
       Data.Trie.Vector.Set
   other-modules:
@@ -86,6 +87,8 @@ test-suite hstrie-test
     , containers
     , deepseq
     , hedgehog
+    , hedgehog-checkers
+    , hedgehog-checkers-lens
     , hstrie
     , lens
     , profunctors

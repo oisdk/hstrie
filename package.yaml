@@ -66,6 +66,8 @@ tests:
     dependencies:
     - hstrie
     - hedgehog
+    - hedgehog-checkers
+    - hedgehog-checkers-lens
   hstrie-doctests:
     main:                doctests.hs
     source-dirs:         doctest

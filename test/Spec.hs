@@ -6,6 +6,7 @@ module Main (main) where
 import           Hedgehog
 import qualified Hedgehog.Gen         as Gen
 import qualified Hedgehog.Range       as Range
+import           Hedgehog.Checkers
 
 import           Control.Monad
 import           Data.Foldable
@@ -86,6 +87,14 @@ deleteProp Mapping{..} = property $ do
     assert (not (member y deld))
     trie === deld
 
+ord1Prop :: (Ord1 f, Ord a, Eq (f a), Show (f a)) => Gen (f a) -> (f a -> Gen (f a)) -> Property
+ord1Prop gena genf = property $ do
+    reflexive rel gena
+    transitive rel gena genf
+    antiSymmetric rel gena genf
+    where
+      rel x y = compare1 x y /= GT
+
 prop_memberList :: Property
 prop_memberList = memberProp listTrie
 
@@ -94,6 +103,19 @@ prop_deleteList = deleteProp listTrie
 
 prop_foldableList :: Property
 prop_foldableList = foldableProp (gen listTrie)
+
+prop_ord1List :: Property
+prop_ord1List =
+    ord1Prop
+        (foldr (insert listTrie) (empty listTrie) <$>
+         Gen.list (Range.linear 0 100) (gen listTrie))
+        increment
+  where
+    increment :: ListTrie String -> Gen (ListTrie String)
+    increment xs = Gen.filter (xs<=) $ do
+        ins <- Gen.list (Range.linear 0 3) (gen listTrie)
+        del <- Gen.list (Range.linear 0 3) (gen listTrie)
+        pure (flip (foldr ListTrie.insert) ins . flip (foldr ListTrie.delete) del $ xs)
 
 prop_memberVector :: Property
 prop_memberVector = memberProp vectorTrie
