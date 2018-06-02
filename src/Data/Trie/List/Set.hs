@@ -18,8 +18,8 @@ import qualified Data.Map.Strict       as Map
 import           Data.Bool             (bool)
 import           Data.Foldable         (Foldable (..))
 import           Data.Functor.Classes  (Eq1 (..), Ord1 (..))
-import           Data.Maybe            (isJust)
 import           Data.Semigroup        (Semigroup (..), stimesIdempotent)
+import           Data.Maybe
 
 import           Control.Applicative   (Applicative (..), liftA2)
 import           Data.List             (unfoldr)
@@ -31,8 +31,6 @@ import qualified GHC.Exts              as OverloadedLists
 
 import           Data.Coerce.Utilities
 import           Data.Trie.Internal.Ap
-
-import           GHC.Base              (augment, build, oneShot)
 
 instance (Ord a, [a] ~ b) =>
          Semigroup (Trie b) where
@@ -79,36 +77,28 @@ children :: Lens (Trie [a]) (Trie [b]) (Map a (Trie [a])) (Map b (Trie [b]))
 children f (Trie e m) = fmap (Trie e) (f m)
 {-# INLINE children #-}
 
-augCons :: a -> [a] -> [a]
-augCons x = augment (\c -> c x)
-{-# INLINE augCons #-}
-
-buildNil :: [a]
-buildNil = build (\_ n -> n)
-{-# INLINE buildNil #-}
-
 instance Foldable Trie where
     foldr f b (Trie e m)
-      | e = f buildNil r
+      | e = f [] r
       | otherwise = r
       where
-        r = Map.foldrWithKey (\x tr xs -> foldr (f . augCons x) xs tr) b m
+        r = Map.foldrWithKey (\x tr xs -> foldr (f . (:) x) xs tr) b m
     foldr' f !b (Trie e c)
-      | e = f buildNil r
+      | e = f [] r
       | otherwise = r
       where
-        !r = Map.foldrWithKey' (\x tr !xs -> foldr' (f . augCons x) xs tr) b c
+        !r = Map.foldrWithKey' (\x tr !xs -> foldr' (f . (:) x) xs tr) b c
     foldl f b (Trie e c) =
-        Map.foldlWithKey (\xs x -> foldl (\a -> f a . augCons x) xs) (bool b (f b buildNil) e) c
+        Map.foldlWithKey (\xs x -> foldl (\a -> f a . (:) x) xs) (bool b (f b []) e) c
     foldl' f !b (Trie e c) =
-        Map.foldlWithKey' (\xs x -> foldl' (\ !a -> f a . augCons x) xs) r c
+        Map.foldlWithKey' (\xs x -> foldl' (\ !a -> f a . (:) x) xs) r c
       where
-        !r = bool b (f b buildNil) e
+        !r = bool b (f b []) e
     foldMap f (Trie e c)
-      | e = f buildNil `mappend` r
+      | e = f [] `mappend` r
       | otherwise = r
       where
-        r = Map.foldMapWithKey (\x -> foldMap (f . augCons x)) c
+        r = Map.foldMapWithKey (\x -> foldMap (f . (:) x)) c
     length = go 0
       where
         go :: Int -> Trie a -> Int
@@ -128,10 +118,10 @@ instance Foldable Trie where
 instance (Ord b, c1 ~ [b], c2 ~ [b], a1 ~ a2) =>
          Each (Trie a1) (Trie c1) a2 c2 where
     each f (Trie e c)
-      | e = liftA2 insert (f buildNil) r
+      | e = liftA2 insert (f []) r
       | otherwise = r
       where
-        r = getAp (Map.foldMapWithKey (\x -> Ap #. each (f . augCons x)) c)
+        r = getAp (Map.foldMapWithKey (\x -> Ap #. each (f . (:) x)) c)
     {-# INLINE each #-}
 
 instance (Show a, b ~ [a]) =>
@@ -151,7 +141,7 @@ insert
     => f a -> Trie [a] -> Trie [a]
 insert =
     foldr
-        (\x xs -> children . at x %~ Just . xs . fold)
+        (\x xs -> children . at x . nonEmpty %~ xs)
         (endsHere .~ True)
 
 delete
@@ -159,27 +149,21 @@ delete
     => f a -> Trie [a] -> Trie [a]
 delete =
     foldr
-        (\x xs -> children . at x %~ (=<<) (nonEmpty . xs))
+        (\x xs -> children . at x . nonEmpty %~ xs)
         (endsHere .~ False)
 
-nonEmpty :: Trie a -> Maybe (Trie a)
-nonEmpty tr@(Trie e m)
-  | not e && Map.null m = Nothing
-  | otherwise = Just tr
+nonEmpty :: Iso' (Maybe (Trie [a])) (Trie [a])
+nonEmpty = anon (Trie False Map.empty) (\(Trie e m) -> not e && Map.null m)
 
 member :: (Ord a, Foldable f) => f a -> Trie [a] -> Bool
-member = foldr (\x xs -> anyOf (children . ix x) (oneShot xs)) (view endsHere)
+member = foldr (\x -> anyOf (children . ix x)) (view endsHere)
 
 type instance Index (Trie a) = a
 type instance IxValue (Trie a) = ()
 
 instance (Ord a, [a] ~ b) =>
          Contains (Trie b) where
-    contains xs k =
-        foldr
-            (\x a -> (children . at x) (fmap nonEmpty . a . fold))
-            (endsHere k)
-            xs
+    contains = foldr (\x xs -> (children . at x . nonEmpty . xs)) endsHere
     {-# INLINE contains #-}
 
 instance (Ord a, [a] ~ b) =>
@@ -191,7 +175,7 @@ instance (Ord a, [a] ~ b) =>
 
 instance (Ord a, [a] ~ b) =>
          At (Trie b) where
-    at xs = contains xs . iso (bool Nothing (Just ())) isJust
+    at = foldr (\x xs -> children . at x . nonEmpty . xs) (endsHere . iso (bool Nothing (Just ())) isJust)
     {-# INLINE at #-}
 
 singleton :: Foldable f => f a -> Trie [a]
@@ -206,11 +190,9 @@ fromList
 fromList = foldl' (flip insert) mempty
 
 prefixed :: (Ord a, Foldable f) => f a -> Lens' (Trie [a]) (Trie [a])
-prefixed =
-    flip $
-    foldr (\x a -> children (at x (fmap nonEmpty . a . fold)))
+prefixed = flip $ foldr (\x -> children . at x . nonEmpty)
 
-filter :: ([a] -> Bool) -> Trie [a] -> Trie [a]
-filter p (Trie e m) = Trie (e && p []) (Map.mapMaybeWithKey f m)
-  where
-    f k v = nonEmpty (filter (p . (:) k) v)
+-- filter :: ([a] -> Bool) -> Trie [a] -> Trie [a]
+-- filter p (Trie e m) = Trie (e && p []) (Map.mapMaybeWithKey f m)
+--   where
+--     f k v = nonEmpty (filter (p . (:) k) v)
